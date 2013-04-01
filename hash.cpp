@@ -16,29 +16,30 @@ inline unsigned int CHash::hashkey(const void *key) const
 }
 
 /*contruct function*/
-CHash::CHash()
+CHash::CHash(unsigned int ihashsize)
 {
-    m_ihashsize = 0;
+    m_ihashsize = ihashsize;
+	m_pElement  = new Element[ihashsize];
+	
 }
 
 /*deconstruct function*/
 CHash::~CHash()
 {
-    
+    delete [] m_pElement;
 }
 
-
-void CHash::SetHashSize(unsigned int hashSize)
-{
-    m_ihashsize = hashSize;
-}
-
-
+/*get hash size*/
 unsigned int CHash::GetHashSize(void)
 {
     return m_ihashsize;
 }
 
+/*insert a new node*/
+bool CHash::lookup(Element *pElement)
+{
+    
+}
 
 
 

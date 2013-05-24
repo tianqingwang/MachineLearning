@@ -3,17 +3,25 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <math.h>
+#include <string.h>
+
 
 #define PI 3.1415926535898
+#define MAX_FEATURE_LEN    (13)
 
 unsigned char * readBMP(char* filename);
 unsigned int  getImageWidth(unsigned char *data,int width,int height);
 unsigned int  getImageHeight(unsigned char *data,int width,int height);
 unsigned int ImageRotation(unsigned char *data, int width, int height);
+unsigned int ImageSplit(unsigned char *data, int width, int height);
+unsigned int ImageThinning(unsigned char *data, int width, int height);
+unsigned int getfeatureVector(unsigned char *data, unsigned int *vector,int image_width, int image_height);
 
 int main(int argc, char * argv[])
 {
-    char *filename = "showphone3.bmp";
+    char filename[256];
+	strcpy(filename, argv[1]);
+	printf("%s\n",filename);
 	readBMP(filename);
 	
 	return 0;
@@ -29,8 +37,9 @@ unsigned char * readBMP(char* filename)
 	int width = *(int*)&info[18];
 	int height = *(int*)&info[22];
 	
+	int striWidth = ((width*3+3)>>2)<<2;
 	
-	int size =3*width*height;
+	int size =striWidth*height;
 	
 	unsigned char* data = new unsigned char[size];
 	unsigned char* rot_data = new unsigned char[4*size];
@@ -62,7 +71,9 @@ unsigned char * readBMP(char* filename)
 	
 //	int new_width = getImageWidth(data,width,height);
 //	int new_height = getImageHeight(data,width,height);
-    ImageRotation(data,width,height);	
+//    ImageRotation(data,width,height);
+//    ImageThinning(data,width,height);	
+    ImageSplit(data,width,height);
 
 	printf("width    :%d\n",width);
 	printf("height   :%d\n",height);
@@ -258,6 +269,372 @@ unsigned int getImageHeight(unsigned char *data,int width,int height)
 	}	
 	
 	return (top_border - bottom_border);
+}
+
+static int IsForeGroundPixel(unsigned char *data){
+    int retval = 0;
+	
+	if (data[0] == 0 && data[1] == 0 && data[2] == 0){
+	    retval = 1;
+	}
+	
+	return retval;
+}
+
+static int GetNeighbors(unsigned char *data,unsigned char *list,int pos_w,int pos_h,int width){
+    /*0: foregroup pixel, 1:backgroup pixel*/
+    list[0] = data[pos_h*width*3 + (pos_w+1)*3] == 0 ? 0: 1;
+	list[1] = data[(pos_h+1)*width*3 + (pos_w+1)*3] == 0? 0 : 1;
+	list[2] = data[(pos_h+1)*width*3 + pos_w*3] == 0 ? 0 : 1;
+	list[3] = data[(pos_h+1)*width*3 + (pos_w -1)*3] == 0? 0: 1;
+	list[4] = data[pos_h*width*3 + (pos_w-1)*3] == 0 ? 0:1;
+	list[5] = data[(pos_h-1)*width*3 + (pos_w-1)*3] == 0?0:1;
+	list[6] = data[(pos_h-1)*width*3 + pos_w*3] == 0 ? 0:1;
+	list[7] = data[(pos_h-1)*width*3 + (pos_w-1)*3] == 0?0:1;
+}
+
+static int DetectConnectivity(unsigned char *list){
+    int count = 0;
+	
+	count = list[6] - list[6]*list[7]*list[0];
+	count+= list[0] - list[0]*list[1]*list[2];
+	count+= list[2] - list[2]*list[3]*list[4];
+	count+= list[4] - list[4]*list[5]*list[6];
+	
+	return count;
+}
+
+unsigned int ImageThinning(unsigned char *data, int width, int height)
+{
+    int i,j;
+	unsigned char *p = new unsigned char[8];
+	int loop = 1;
+	
+	unsigned char *mask = new unsigned char[width*height];
+	memset(mask, 0, width*height);
+	
+	/*Hilditch Algorithm*/
+	while(loop){
+	    loop = 0;
+		
+		for (i=1; i<height-1; i++){
+		    for (j=1; j<width-1; j++){
+			    /*condition 1: must be foreground pixel*/
+				if (data[i*width*3 + j*3] != 0 && data[i*width*3 + j*3 + 1] != 0 && data[i*width*3+j*3+2] != 0){
+				    continue;
+				}
+				
+				//p3 p2 p1
+				//p4 p  p0
+				//p5 p6 p7
+				memset(p,0,8);
+				GetNeighbors(data,p,j,i,width);
+				/*condition2: p0,p2,p4,p6 must have one backgroup pixel*/
+				if (p[0] == 0 && p[2] == 0&& p[4] == 0 && p[6] == 0){
+				    continue;
+				}
+				
+				/*condition3: p0 ~ p7 must have 2 foregroup pixels at least*/
+				int count = 0;
+				int k = 0;
+				for (k=0; k<8; k++){
+				    count += p[k];
+				}
+				
+				if (count < 2){
+				    continue;
+				}
+				
+				/*condition4:connectivity = 1*/
+				if (DetectConnectivity(p) != 1){
+				    continue;
+				}
+				
+				/*condition5: if p2 is masked as deleted, set p2 as backgroup, the connectivity is still equal 1*/
+				if (mask[j*width+i+1] == 1){
+				    int temp = p[2];
+				    p[2] = 1;
+					if (DetectConnectivity(p) != 1){
+					    continue;
+					}
+					p[2] = temp;
+				}
+				
+				/*condition6:if p4 is masked as deleted, set p4 as backgroup, the connectivity is still equal 1*/
+				if (mask[(j-1)*width+i] == 1){
+				    int temp = p[4];
+				    p[4] = 1;
+					if (DetectConnectivity(p) != 1){
+					    continue;
+					}
+					p[4] = temp;
+				}
+				
+				mask[j*width+i] = 1;
+				loop = 1;
+			}
+		}
+		
+		/*delete all masked as backgroup*/
+		for (i=0; i<height; i++){
+		    for (j=0; j<width; j++){
+			    if (mask[i*width + j] == 1){
+				    data[i*width*3 + j*3] = 255;
+					data[i*width*3 + j*3 + 1] = 255;
+					data[i*width*3 + j*3 + 2] = 255;
+					mask[i*width+j] = 0;
+				}
+			}
+		}
+	}
+	
+	delete[] mask;
+}
+
+static int RoughSplit(unsigned char *data,int *pos,int width,int height)
+{
+    int i,j;
+	
+	for (i=0; i<width; i++){
+	    int pixel_num = 0;
+		for (j=0; j<height; j++){ /*scan column*/
+		    if (data[j*width*3 + i*3] == 0 && data[j*width*3 + i*3 + 1] ==0 && data[j*width*3 + i*3 + 2] == 0){
+			    pixel_num ++;
+			}
+		}
+		
+		if (pixel_num <=3){
+		    pos[i] = 0;
+		}
+		else{
+		    pos[i] = 1;
+		}
+	}
+	
+	int count = 0;
+	int flag = 0;
+	int seg_start = 0;
+	int seg_end   = 0;
+	for (i=0; i<width; i++){
+	    /*skip 0*/
+		if (pos[i] == 0 && flag == 0){
+		    continue;
+		}
+		
+		if (flag == 0){
+		    seg_start = i;
+		}
+		
+		flag = 1;
+		if (pos[i] == 1 && flag == 1){
+		    count ++;
+		}
+		else{
+		    seg_end = i-1;
+			
+			if (count > 12 && count < 24){
+			    /*two numbers*/
+				pos[seg_start + count/2] = 0;
+			}
+			else if (count >= 24){
+			    pos[seg_start + count/3] = 0;
+				pos[seg_start + 2*count/3] = 0;
+			}
+			count = 0;
+			flag = 0;
+		}
+		
+	}
+	
+	return 0;
+}
+
+static unsigned char *ImageNorm(unsigned char *data,int width, int height)
+{
+    int i,j;
+	int new_x, new_y;
+
+    /*normalize the data to 16X28*/
+    unsigned char *norm_data  = new unsigned char[16*28];
+#if 1	
+	for (i=0; i<width; i++){
+	    for (j=0; j<height; j++){
+		    new_x = (int)(16*i/width);
+			new_y = (int)(28*j/height);
+			if (data[j*width*3 + i*3] == 255 && data[j*width*3 + i*3 + 1] == 255 && data[j*width*3 + i*3 + 2] == 255){
+			    norm_data[new_y*16 + new_x] = 0;
+			}
+			else{
+			    norm_data[new_y*16 + new_x] = 1;
+			}
+		}
+	}
+#endif	
+
+    
+	return norm_data;
+}
+
+unsigned int ImageSplit(unsigned char *data, int width, int height)
+{
+    int i = 0;
+	int j = 0;
+	int start = 0;
+	int end   = 0;
+    int *pos = new int[width];
+	
+	RoughSplit(data,pos,width,height);
+    
+	
+	while(i<width){
+	    do{
+		   i++;
+		}while(pos[i] == 0);
+		
+		start = i;
+		
+		do{
+		   i++;
+		}while(pos[i] == 1);
+		
+		end = i-1;
+		
+		/*read the segmented data*/
+		int new_width = end-start + 1;
+		unsigned char *one_ch = new unsigned char[height*new_width*3];
+		int k = 0;
+		for (k = 0; k<height; k++){
+		    for (j=start; j<=end; j++){
+		        one_ch[k*new_width*3 + (j-start)*3] = data[k*width*3 + j*3];
+				one_ch[k*new_width*3 + (j-start)*3 + 1] = data[k*width*3 + j*3 + 1];
+				one_ch[k*new_width*3 + (j-start)*3 + 2] = data[k*width*3 + j*3 + 2];
+		    }
+		}
+		
+		unsigned char *norm_data = new unsigned char[16*28];
+		
+		norm_data = ImageNorm(one_ch,new_width,height);
+		
+		unsigned int *feature_vector = new unsigned int[MAX_FEATURE_LEN];
+		memset(feature_vector,0,MAX_FEATURE_LEN);
+		
+		getfeatureVector(norm_data,feature_vector,16,28);
+#if 1	
+        	
+		for (k=27; k>=0; k--){
+		    for (j=0; j<16; j++){
+			    if (norm_data[k*16 + j] == 0){
+				    printf("  ");
+				}
+				else{
+			        printf("%d ",norm_data[k*16 + j]);
+				}
+			}
+			printf("\n");
+		}
+		printf("\n");
+		for (k=0; k<MAX_FEATURE_LEN; k++){
+		    printf("%d ",feature_vector[k]);
+		}
+		
+		printf("\n\n\n");
+#endif
+        
+	}
+	
+#if 0
+    /*draw vertical bar*/
+	for (i=0; i<width; i++){
+	    if (pos[i] == 0){
+            /*draw vertical bar for test*/
+		    for (j=0; j<height; j++){
+			    data[j*width*3 + i*3] = 255; 
+				data[j*width*3 + i*3 +1 ] = 0;
+				data[j*width*3 + i*3 + 2] = 0;
+			}
+		}
+	}
+#endif
+
+    
+	return 0;
+}
+
+
+unsigned int getfeatureVector(unsigned char *data, unsigned int *vector,int image_width, int image_height)
+{
+    int i,j;
+	/*split image into 3*3 blocks*/
+//	___________________(thd_width,thd_height)
+//	|   7 |  8  |  9  |
+//	|_____|_____|_____|
+//	|   4 |  5  |  6  |
+//	|_____|_____|_____|
+//	|   1 |  2  |  3  |
+//	|_____|_____|_____|(thd_width,first_height)
+// (first_width,first_height)	
+    int first_height = image_height/3;
+	int first_width  = image_width/3;
+	
+	int count = 0;
+	int s,w;
+	
+	for (s = 0; s<3; s++){
+	    for (w=0; w<3; w++){
+		    count = 0;
+		    for (i=s*first_height; i<(s+1)*first_height; i++){
+			    for (j=w*first_width; j<(w+1)*first_width; j++){
+				    if (data[i*image_width + j] == 1){
+					    count++;
+					}
+				}
+			}
+			vector[3*s+w] = count;
+		}
+	}
+	
+	/*project to horizontal and vertical axis*/
+	count = 0;
+	for (i=0; i<image_height; i++){
+	    for (j=0; j<image_width/2; j++){
+		    if (data[i*image_width + j] == 1){
+			     count++;
+			}
+		}
+	}
+	vector[9] = count;
+	
+	count = 0;
+	for (i=0; i<image_height; i++){
+	    for (j=image_width/2; j<image_width; j++){
+		    if (data[i*image_width + j] == 1){
+			    count++;
+			}
+		}
+	}
+	vector[10] = count;
+	
+	
+	count = 0;
+	for (i=0; i<image_height/2; i++){
+	    for (j=0; j<image_width; j++){
+		    if (data[i*image_width +j] == 1){
+			    count++;
+			}
+		}
+	}
+	vector[11] = count;
+	
+	count = 0;
+	for (i=image_height/2; i<image_height; i++){
+	    for (j=0; j<image_width; j++){
+		    if (data[i*image_width + j] == 1){
+			    count++;
+			}
+		}
+	}
+	vector[12] = count;
+	
 }
 
 

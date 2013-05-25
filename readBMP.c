@@ -30,22 +30,48 @@ int main(int argc, char * argv[])
 unsigned char * readBMP(char* filename)
 {
     int i = 0;
+	int j = 0;
+	int k = 0;
+	
+	/*read image head information*/
 	FILE *f = fopen(filename,"rb");
 	unsigned char info[54];
     fread(info, sizeof(unsigned char), 54, f); // read the 54-byte header
 	
 	int width = *(int*)&info[18];
 	int height = *(int*)&info[22];
-	
-	int striWidth = ((width*3+3)>>2)<<2;
-	
-	int size =striWidth*height;
+
+	/*read image data*/
+	int l_width = ((width*3 + 3)>>2)<<2; /*alignment*/
+	int size =l_width*height;
 	
 	unsigned char* data = new unsigned char[size];
-	unsigned char* rot_data = new unsigned char[4*size];
 	fread(data,sizeof(unsigned char),size,f);
 	fclose(f);
 	
+	/*gray picture*/
+	for (i=0; i<height; i++){
+	    for (j=0; j<width; j++){
+		    k = i*l_width + j*3;
+			unsigned char tmp = data[k];
+			data[k] = data[k+2];
+			data[k+2] = tmp;
+			
+			int gray = (int)(((int)data[k])*30 + ((int)data[k+1])*59 + ((int)data[k+2])*11 + 50)/100;
+			if (gray >= 200){
+			    data[k] = 255;
+				data[k+1] = 255;
+				data[k+2] = 255;
+			}
+			else{
+			    data[k] = 0;
+				data[k+1] = 0;
+				data[k+2] = 0;
+			}
+		}
+	}
+
+#if 0	
 	for (i=0; i<size; i += 3){
 
 	unsigned char tmp = data[i];
@@ -68,12 +94,12 @@ unsigned char * readBMP(char* filename)
 		}
 
 	}
-	
+#endif	
 //	int new_width = getImageWidth(data,width,height);
 //	int new_height = getImageHeight(data,width,height);
 //    ImageRotation(data,width,height);
 //    ImageThinning(data,width,height);	
-    ImageSplit(data,width,height);
+//    ImageSplit(data,width,height);
 
 	printf("width    :%d\n",width);
 	printf("height   :%d\n",height);

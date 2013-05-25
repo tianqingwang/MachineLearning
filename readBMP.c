@@ -52,7 +52,7 @@ unsigned char * readBMP(char* filename)
 	/*gray picture*/
 	for (i=0; i<height; i++){
 	    for (j=0; j<width; j++){
-		    k = i*l_width + j*3;
+		    k = i*l_width+ j*3;
 			unsigned char tmp = data[k];
 			data[k] = data[k+2];
 			data[k+2] = tmp;
@@ -97,7 +97,7 @@ unsigned char * readBMP(char* filename)
 #endif	
 //	int new_width = getImageWidth(data,width,height);
 //	int new_height = getImageHeight(data,width,height);
-//    ImageRotation(data,width,height);
+    ImageRotation(data,width,height);
 //    ImageThinning(data,width,height);	
 //    ImageSplit(data,width,height);
 
@@ -151,11 +151,15 @@ unsigned int ImageRotation(unsigned char *data, int width, int height)
 	
 	int i = 0;
 	int j = 0;
+	int k = 0;
 	
 	int new_x, new_y;
-	unsigned char *rot_data = new unsigned char[3*width*height];
 	
-	memset(rot_data,255,3*width*height);
+	int l_width = ((width*3 + 3)>>2)<<2;
+	
+	unsigned char *rot_data = new unsigned char[3*l_width*height];
+	
+	memset(rot_data,255,3*l_width*height);
 	
 //	for (angle = 0; angle <= 30; angle ++){
         /*for test*/
@@ -164,6 +168,18 @@ unsigned int ImageRotation(unsigned char *data, int width, int height)
 	    for (i = 0; i < height; i++){
             for (j = 0; j<width; j++){
 			    double arc_angle = angle*PI/180.0;
+				k = i*l_width + j*3;
+				if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
+				    int new_x = (int)(j-i*tan(arc_angle));
+					int new_y = i;
+					if (new_x >=0 && new_x < width){
+					    int new_k = new_y*l_width + new_x*3;
+						rot_data[new_k] = data[k];
+						rot_data[new_k+1] = data[k+1];
+						rot_data[new_k+2] = data[k+2];
+					}
+				}
+#if 0
 				if (data[i*width*3 + j*3] == 0 && data[i*width*3 + j*3 + 1] == 0 && data[i*width*3+j*3+2] ==0){
 				    int new_x = (int)(j-i*tan(arc_angle));
 					int new_y = i;
@@ -176,18 +192,32 @@ unsigned int ImageRotation(unsigned char *data, int width, int height)
 				        rot_data[new_y*width*3+new_x*3 + 2] = data[i*width*3 + j*3 +2];
 					}
 				}
+#endif
 			}
 		}
 
+#if 0
         for (i=0; i<height; i++){
 	        for (j=0; j<width; j++){
 		        data[i*width*3 + j*3] = rot_data[i*width*3 + j*3];
 			    data[i*width*3 + j*3 + 1] = rot_data[i*width*3 + j*3 + 1];
 			    data[i*width*3 + j*3 + 2] = rot_data[i*width*3 + j*3 + 2];
 		    }
-	    }	
+	    }
+#endif
+        
+        for (i=0; i<height; i++){
+            for (j=0; j<width; j++){
+			    k = i*l_width + j*3;
+				data[k] = rot_data[k];
+				data[k+1] = rot_data[k+1];
+				data[k+2] = rot_data[k+2];
+			}
+		}		
 //	}
 	
+	
+	delete[] rot_data;
 	return 0;
 }
 

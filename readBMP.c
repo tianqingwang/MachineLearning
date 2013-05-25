@@ -8,6 +8,8 @@
 
 #define PI 3.1415926535898
 #define MAX_FEATURE_LEN    (13)
+#define NORM_WIDTH         (16)
+#define NORM_HEIGHT        (28)
 
 unsigned char * readBMP(char* filename);
 unsigned int  getImageWidth(unsigned char *data,int width,int height);
@@ -71,35 +73,11 @@ unsigned char * readBMP(char* filename)
 		}
 	}
 
-#if 0	
-	for (i=0; i<size; i += 3){
-
-	unsigned char tmp = data[i];
-		data[i] = data[i+2];
-		data[i+2] = tmp;
-		
-//		printf("r=%u,g=%u,b=%u\n",data[i],data[i+1],data[i+2]);
-		int gray = (int)(((int)data[i])*30 + ((int)data[i+1])*59 + ((int)data[i+2])*11 + 50)/100;
-		if (gray >= 200){/*white color*/
-		    gray = 255;
-			data[i] = 255;
-			data[i+1] = 255;
-			data[i+2] = 255;
-		}
-		else{/*black color*/
-		    gray = 0;
-			data[i] = 0;
-			data[i+1] = 0;
-			data[i+2] = 0;
-		}
-
-	}
-#endif	
 //	int new_width = getImageWidth(data,width,height);
 //	int new_height = getImageHeight(data,width,height);
     ImageRotation(data,width,height);
 //    ImageThinning(data,width,height);	
-//    ImageSplit(data,width,height);
+    ImageSplit(data,width,height);
 
 	printf("width    :%d\n",width);
 	printf("height   :%d\n",height);
@@ -179,32 +157,9 @@ unsigned int ImageRotation(unsigned char *data, int width, int height)
 						rot_data[new_k+2] = data[k+2];
 					}
 				}
-#if 0
-				if (data[i*width*3 + j*3] == 0 && data[i*width*3 + j*3 + 1] == 0 && data[i*width*3+j*3+2] ==0){
-				    int new_x = (int)(j-i*tan(arc_angle));
-					int new_y = i;
-					
-					new_x += 5;
-					
-					if (new_x >=0 && new_x < width){
-					    rot_data[new_y*width*3+new_x*3] = data[i*width*3 + j*3];
-				        rot_data[new_y*width*3+new_x*3 + 1] = data[i*width*3 + j*3 +1];
-				        rot_data[new_y*width*3+new_x*3 + 2] = data[i*width*3 + j*3 +2];
-					}
-				}
-#endif
+
 			}
 		}
-
-#if 0
-        for (i=0; i<height; i++){
-	        for (j=0; j<width; j++){
-		        data[i*width*3 + j*3] = rot_data[i*width*3 + j*3];
-			    data[i*width*3 + j*3 + 1] = rot_data[i*width*3 + j*3 + 1];
-			    data[i*width*3 + j*3 + 2] = rot_data[i*width*3 + j*3 + 2];
-		    }
-	    }
-#endif
         
         for (i=0; i<height; i++){
             for (j=0; j<width; j++){
@@ -449,12 +404,14 @@ unsigned int ImageThinning(unsigned char *data, int width, int height)
 
 static int RoughSplit(unsigned char *data,int *pos,int width,int height)
 {
-    int i,j;
-	
+    int i,j,k;
+	int l_width = ((width*3 + 3)>>2)<<2; /*width alignment as 4 times*/
+	printf("width = %d, l_width = %d\n",width,l_width);
 	for (i=0; i<width; i++){
 	    int pixel_num = 0;
 		for (j=0; j<height; j++){ /*scan column*/
-		    if (data[j*width*3 + i*3] == 0 && data[j*width*3 + i*3 + 1] ==0 && data[j*width*3 + i*3 + 2] == 0){
+		    k = j*l_width + i*3;
+			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
 			    pixel_num ++;
 			}
 		}
@@ -510,22 +467,22 @@ static unsigned char *ImageNorm(unsigned char *data,int width, int height)
     int i,j;
 	int new_x, new_y;
 
-    /*normalize the data to 16X28*/
-    unsigned char *norm_data  = new unsigned char[16*28];
-#if 1	
-	for (i=0; i<width; i++){
+    /*normalize the data to NORM_WIDTH X NORM_HEIGHT*/
+    unsigned char *norm_data  = new unsigned char[NORM_WIDTH*NORM_HEIGHT];
+	memset(norm_data,0,NORM_WIDTH*NORM_HEIGHT);
+
+    for ( i = 0; i<width; i++){
 	    for (j=0; j<height; j++){
-		    new_x = (int)(16*i/width);
-			new_y = (int)(28*j/height);
-			if (data[j*width*3 + i*3] == 255 && data[j*width*3 + i*3 + 1] == 255 && data[j*width*3 + i*3 + 2] == 255){
-			    norm_data[new_y*16 + new_x] = 0;
+		    new_x = (int)(NORM_WIDTH*i/width);
+			new_y = (int)(NORM_HEIGHT*j/height);
+			if (data[j*width + i] == 0){
+			    norm_data[new_y*NORM_WIDTH + new_x] = 0;
 			}
 			else{
-			    norm_data[new_y*16 + new_x] = 1;
+			    norm_data[new_y*NORM_WIDTH + new_x] = 1;
 			}
 		}
 	}
-#endif	
 
     
 	return norm_data;
@@ -535,9 +492,12 @@ unsigned int ImageSplit(unsigned char *data, int width, int height)
 {
     int i = 0;
 	int j = 0;
+	int k = 0;
 	int start = 0;
 	int end   = 0;
     int *pos = new int[width];
+	
+	int l_width = ((width*3 + 3)>>2)<<2;
 	
 	RoughSplit(data,pos,width,height);
     
@@ -557,33 +517,65 @@ unsigned int ImageSplit(unsigned char *data, int width, int height)
 		
 		/*read the segmented data*/
 		int new_width = end-start + 1;
+#if 0
 		unsigned char *one_ch = new unsigned char[height*new_width*3];
 		int k = 0;
 		for (k = 0; k<height; k++){
 		    for (j=start; j<=end; j++){
-		        one_ch[k*new_width*3 + (j-start)*3] = data[k*width*3 + j*3];
-				one_ch[k*new_width*3 + (j-start)*3 + 1] = data[k*width*3 + j*3 + 1];
-				one_ch[k*new_width*3 + (j-start)*3 + 2] = data[k*width*3 + j*3 + 2];
+		        one_ch[k*new_width*3 + (j-start)*3] = data[k*l_width + j*3];
+				one_ch[k*new_width*3 + (j-start)*3 + 1] = data[k*l_width + j*3 + 1];
+				one_ch[k*new_width*3 + (j-start)*3 + 2] = data[k*l_width + j*3 + 2];
 		    }
 		}
+#endif	
+        
+        unsigned char *one_ch = new unsigned char[height*new_width];
+        memset(one_ch,0,height*new_width);
+		for (k=0; k<height; k++){
+		    for (j=start; j<=end; j++){
+			    int l = k*l_width + j*3;
+				if (data[l] == 0 && data[l+1] == 0 && data[l+2] == 0){
+				    one_ch[k*new_width + j-start] = 1;
+				}
+				else{
+				    one_ch[k*new_width + j-start] = 0;
+				}
+			}
+		}
 		
-		unsigned char *norm_data = new unsigned char[16*28];
+#if 0
+        for (k=0; k<height; k++){
+		    for (j=0; j<new_width; j++){
+			    if (one_ch[k*new_width + j] == 0){
+				    printf("%d ",one_ch[k*new_width + j]);
+				}else{
+				    printf("%d ",one_ch[k*new_width + j]);
+				}
+			}
+			printf("\n");
+		}
+		printf("\n\n\n");
+#endif
+
+                
+		
+		unsigned char *norm_data = new unsigned char[NORM_WIDTH*NORM_HEIGHT];
 		
 		norm_data = ImageNorm(one_ch,new_width,height);
 		
 		unsigned int *feature_vector = new unsigned int[MAX_FEATURE_LEN];
 		memset(feature_vector,0,MAX_FEATURE_LEN);
 		
-		getfeatureVector(norm_data,feature_vector,16,28);
+		getfeatureVector(norm_data,feature_vector,NORM_WIDTH,NORM_HEIGHT);
 #if 1	
         	
-		for (k=27; k>=0; k--){
-		    for (j=0; j<16; j++){
-			    if (norm_data[k*16 + j] == 0){
+		for (k=NORM_HEIGHT-1; k>=0; k--){
+		    for (j=0; j<NORM_WIDTH; j++){
+			    if (norm_data[k*NORM_WIDTH + j] == 0){
 				    printf("  ");
 				}
 				else{
-			        printf("%d ",norm_data[k*16 + j]);
+			        printf("%d ",norm_data[k*NORM_WIDTH + j]);
 				}
 			}
 			printf("\n");
@@ -598,15 +590,15 @@ unsigned int ImageSplit(unsigned char *data, int width, int height)
         
 	}
 	
-#if 0
+#if 1
     /*draw vertical bar*/
 	for (i=0; i<width; i++){
 	    if (pos[i] == 0){
             /*draw vertical bar for test*/
 		    for (j=0; j<height; j++){
-			    data[j*width*3 + i*3] = 255; 
-				data[j*width*3 + i*3 +1 ] = 0;
-				data[j*width*3 + i*3 + 2] = 0;
+			    data[j*l_width + i*3] = 255; 
+				data[j*l_width + i*3 +1 ] = 0;
+				data[j*l_width + i*3 + 2] = 0;
 			}
 		}
 	}

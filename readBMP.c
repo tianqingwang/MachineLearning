@@ -183,13 +183,15 @@ unsigned int  getImageWidth(unsigned char *data,int width,int height)
 	unsigned int right_border = width;
     int i = 0;
 	int j = 0;
+	int k = 0;
+	int l_width = ((width*3 + 3)>>2)<<2;
 	/*scan from left to right*/
-	
 	int count = 0;
 	
 	for (i=0; i<width; i++){
 	    for (j=0; j<height; j++){
-		    if (data[j*width*3 + (i*3)] == 0 && data[j*width*3 + (i*3) + 1] == 0 && data[j*width*3 + (i*3) + 2] == 0)
+		    k=j*l_width + i*3;
+		    if (data[k] == 0 && data[k+1] == 0 && data[k + 2] == 0)
 			{
 			    count++;
 			    if (count == 2){
@@ -202,9 +204,9 @@ unsigned int  getImageWidth(unsigned char *data,int width,int height)
 	}
     /*draw vertical*/
 	for (j = 0; j<height; j++){
-	    data[j*width*3 + (left_border*3)] = 0;
-        data[j*width*3 + (left_border*3) + 1] = 0;
-        data[j*width*3 + (left_border*3) + 2] = 255;  
+	    data[j*l_width + (left_border*3)] = 0;
+        data[j*l_width + (left_border*3) + 1] = 0;
+        data[j*l_width + (left_border*3) + 2] = 255;  
 	}
 	
 	printf("left_border:%d\n",left_border);
@@ -212,7 +214,8 @@ unsigned int  getImageWidth(unsigned char *data,int width,int height)
 	count = 0;
 	for (i=width; i>=0; i--){
 		for (j=0; j<height; j++){
-		    if (data[j*width*3 + (i*3)-1] == 0 && data[j*width*3 + i*3 -2] == 0 && data[j*width*3 + i*3 -3] == 0){
+		    k=j*l_width + 3*i;
+		    if (data[k-1] == 0 && data[k -2] == 0 && data[k -3] == 0){
 			    count++;
 				if (count == 2){
 				    right_border = i;
@@ -224,9 +227,9 @@ unsigned int  getImageWidth(unsigned char *data,int width,int height)
 	
 	/*draw vertical*/
 	for (j = 0; j<height; j++){
-	    data[j*width*3 + (right_border*3)] = 0;
-        data[j*width*3 + (right_border*3) + 1] = 255;
-        data[j*width*3 + (right_border*3) + 2] = 0;  
+	    data[j*l_width + (right_border*3)] = 0;
+        data[j*l_width + (right_border*3) + 1] = 255;
+        data[j*l_width + (right_border*3) + 2] = 0;  
 	}
 	
 	printf("right_border:%d\n",right_border);
@@ -240,11 +243,15 @@ unsigned int getImageHeight(unsigned char *data,int width,int height)
 	unsigned int bottom_border  = 0;
 	int i = 0;
 	int j = 0;
+	int k = 0;
+	
+	int l_width = ((width*3 + 3)>>2)<<2;
     
 	/*scan from bottom to top*/
 	for (i=0; i<height; i++){
 	    for (j=0; j<width; j++){
-		    if (data[i*width*3 + j*3] == 0 && data[i*width*3 + j*3 + 1] == 0 && data[i*width*3 + j*3 + 2] == 0){
+		    k = i*l_width + 3*j;
+		    if (data[k] == 0 && data[k + 1] == 0 && data[k + 2] == 0){
 			    top_border = i;
 				break;
 			}
@@ -255,15 +262,16 @@ unsigned int getImageHeight(unsigned char *data,int width,int height)
 	
 	/*draw horizon*/
 	for (i=0; i<width; i++){
-	    data[top_border*width*3 + i*3] = 200;
-		data[top_border*width*3 + i*3 + 1] = 100;
-		data[top_border*width*3 + i*3 + 2] = 0;
+	    data[top_border*l_width + i*3] = 200;
+		data[top_border*l_width + i*3 + 1] = 100;
+		data[top_border*l_width + i*3 + 2] = 0;
 	}
 
 	/*scan from top to bottom*/
 	for (i=height-1; i>=0; i--){
 	    for (j=0; j<width; j++){
-		    if (data[i*width*3 + j*3] == 0 && data[i*width*3 + j*3 + 1] == 0 && data[i*width*3 + j*3 + 2] == 0){
+		    k = i*l_width + j*3;
+		    if (data[k] == 0 && data[k + 1] == 0 && data[k + 2] == 0){
 			    bottom_border = i;
 				break;
 			}
@@ -274,9 +282,9 @@ unsigned int getImageHeight(unsigned char *data,int width,int height)
 	
 	/*draw horizon*/
 	for (i=0; i<width; i++){
-	    data[bottom_border*width*3 + i*3] = 100;
-		data[bottom_border*width*3 + i*3 + 1] = 155;
-		data[bottom_border*width*3 + i*3 + 2] = 244;	
+	    data[bottom_border*l_width + i*3] = 100;
+		data[bottom_border*l_width + i*3 + 1] = 155;
+		data[bottom_border*l_width + i*3 + 2] = 244;	
 	}	
 	
 	return (top_border - bottom_border);

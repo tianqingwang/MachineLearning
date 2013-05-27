@@ -71,11 +71,11 @@ unsigned char * recogBMP(char* filename)
             data[k+2] = tmp;
 
             int gray = (int)(((int)data[k])*30 + ((int)data[k+1])*59 + ((int)data[k+2])*11 + 50)/100;
-            if (gray >= 200) {
+            if (gray >= 200) {/*white color*/
                 data[k] = 255;
                 data[k+1] = 255;
                 data[k+2] = 255;
-            } else {
+            } else { /*black color*/
                 data[k] = 0;
                 data[k+1] = 0;
                 data[k+2] = 0;
@@ -86,9 +86,9 @@ unsigned char * recogBMP(char* filename)
 //	int new_width = getImageWidth(data,width,height);
 //	int new_height = getImageHeight(data,width,height);
     ImageRotation(data,width,height);
-//    ImageThinning(data,width,height);
-    ImageSplit(data,width,height);
-#if 0
+    ImageThinning(data,width,height);
+//    ImageSplit(data,width,height);
+#if 1
     /*for test only*/
     printf("width    :%d\n",width);
     printf("height   :%d\n",height);
@@ -308,6 +308,116 @@ static int DetectConnectivity(unsigned char *list)
 
 unsigned int ImageThinning(unsigned char *data, int width, int height)
 {
+    static int erasetable[256]={   
+                                0,0,1,1,0,0,1,1,   
+                                1,1,0,1,1,1,0,1,   
+                                1,1,0,0,1,1,1,1,   
+                                0,0,0,0,0,0,0,1,   
+                                   
+                                0,0,1,1,0,0,1,1,   
+                                1,1,0,1,1,1,0,1,   
+                                1,1,0,0,1,1,1,1,   
+                                0,0,0,0,0,0,0,1,   
+                                   
+                                1,1,0,0,1,1,0,0,   
+                                0,0,0,0,0,0,0,0,   
+                                0,0,0,0,0,0,0,0,   
+                                0,0,0,0,0,0,0,0,   
+                                   
+                                1,1,0,0,1,1,0,0,   
+                                1,1,0,1,1,1,0,1,   
+                                0,0,0,0,0,0,0,0,   
+                                0,0,0,0,0,0,0,0,   
+   
+                                0,0,1,1,0,0,1,1,   
+                                1,1,0,1,1,1,0,1,   
+                                1,1,0,0,1,1,1,1,   
+                                0,0,0,0,0,0,0,1,   
+                                   
+                                0,0,1,1,0,0,1,1,   
+                                1,1,0,1,1,1,0,1,   
+                                1,1,0,0,1,1,1,1,   
+                                0,0,0,0,0,0,0,0,   
+                                   
+                                1,1,0,0,1,1,0,0,   
+                                0,0,0,0,0,0,0,0,   
+                                1,1,0,0,1,1,1,1,   
+                                0,0,0,0,0,0,0,0,   
+   
+                                1,1,0,0,1,1,0,0,   
+                                1,1,0,1,1,1,0,0,   
+                                1,1,0,0,1,1,1,0,   
+                                1,1,0,0,1,0,0,0   
+                          };  
+
+    unsigned char n,e,s,w,ne,se,nw,sw;
+	int l_width = ((width*3 + 3)>>2)<<2;
+    short Finished = 0;
+	int x,y;
+	int k ;
+    while(!Finished){
+        Finished = 1;
+		for (y=1; y<height-1; y++){
+		    x = 1;
+			while(x < width - 1){
+			    k=y*l_width + x*3;
+				if (data[k] == 0 && data[k+1] == 0 && data[k+2]==0){
+				    w = data[k-3];
+					e = data[k+3];
+					if (w == 255 || e == 255){
+					    nw = data[k+l_width -3];
+						n  = data[k+l_width];
+						ne = data[k+l_width+3];
+						sw = data[k-l_width -3];
+						s  = data[k-l_width];
+						se = data[k+l_width+3];
+						int num = nw/255 + n/255*2 + ne/255*4 + w/255*8+e/255*16+sw/255*32+s/255*64+se/255*128;
+						if (erasetable[num] == 1){
+						    data[k] = 255;
+							data[k+1] = 255;
+							data[k+2] = 255;
+							Finished = 0;
+							x++;
+						}
+					}
+				}
+				x++;
+			}
+		}
+		
+		for (x=1; x < width-1; x++){
+		    y=1;
+			while(y < height -1){
+			    k=y*l_width+3*x;
+				if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
+				    n = data[k+l_width];
+					s = data[k-l_width];
+					if (n==255 || s==255){
+					    nw = data[k+l_width -3];
+						ne = data[k+l_width + 3];
+						w  = data[k-3];
+						e  = data[k+3];
+						sw = data[k-l_width-3];
+						se = data[k-l_width+3];
+						int num=nw/255+n/255*2+ne/255*4+w/255*8+e/255*16+sw/255*32+s/255*64+se/255*128; 
+						if(erasetable[num] == 1){
+						    data[k] = 255;
+							data[k+1] = 255;
+							data[k+2] = 255;
+							Finished = 0;
+							y++;
+						}
+					}
+				}
+				y++;
+			}
+		}
+	}	
+}
+
+#if 0
+unsigned int ImageThinning(unsigned char *data, int width, int height)
+{
     int i,j;
     unsigned char *p = new unsigned char[8];
     int loop = 1;
@@ -392,6 +502,7 @@ unsigned int ImageThinning(unsigned char *data, int width, int height)
 
     delete[] mask;
 }
+#endif
 
 static int RoughSplit(unsigned char *data,int *pos,int width,int height)
 {

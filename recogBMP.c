@@ -4,7 +4,7 @@
 #include <memory.h>
 #include <math.h>
 #include <string.h>
-
+#include "floatfann.h"
 
 #define PI 3.1415926535898
 #define MAX_FEATURE_LEN    (13)
@@ -18,6 +18,7 @@ unsigned int ImageRotation(unsigned char *data, int width, int height);
 unsigned int ImageSplit(unsigned char *data, int width, int height);
 unsigned int ImageThinning(unsigned char *data, int width, int height);
 unsigned int getfeatureVector(unsigned char *data, unsigned int *vector,int image_width, int image_height);
+unsigned int recogDigital(unsigned int *vector);
 
 int main(int argc, char * argv[])
 {
@@ -482,11 +483,12 @@ unsigned int ImageSplit(unsigned char *data, int width, int height)
     int start = 0;
     int end   = 0;
     int *pos = new int[width];
-
+    int recogNum;
     int l_width = ((width*3 + 3)>>2)<<2;
 
     RoughSplit(data,pos,width,height);
-
+    
+	
 
     while(i<width) {
         do {
@@ -552,6 +554,7 @@ unsigned int ImageSplit(unsigned char *data, int width, int height)
         memset(feature_vector,0,MAX_FEATURE_LEN);
 
         getfeatureVector(norm_data,feature_vector,NORM_WIDTH,NORM_HEIGHT);
+		
 #if 1
 
         for (k=NORM_HEIGHT-1; k>=0; k--) {
@@ -571,10 +574,19 @@ unsigned int ImageSplit(unsigned char *data, int width, int height)
 
         printf("\n\n\n");
 #endif
-
+        
+		recogNum = recogDigital(feature_vector);
+		if (recogNum > 9){
+		     printf("recognized failure(recogNum = %d)\n",recogNum);
+			 printf("");
+			 exit(1);
+		}
+		else{
+		    printf("%d",recogNum);
+		}
     }
 
-#if 1
+#if 0
     /*draw vertical bar*/
     for (i=0; i<width; i++) {
         if (pos[i] == 0) {
@@ -587,7 +599,8 @@ unsigned int ImageSplit(unsigned char *data, int width, int height)
         }
     }
 #endif
-
+    
+	printf("\n");
 
     return 0;
 }
@@ -666,7 +679,39 @@ unsigned int getfeatureVector(unsigned char *data, unsigned int *vector,int imag
         }
     }
     vector[12] = count;
+	
+	return 0;
+}
 
+unsigned int recogDigital(unsigned int *vector)
+{
+    fann_type *calc_out;
+	int calc_iout[4];
+	fann_type input[MAX_FEATURE_LEN];
+	int rec_num;
+	int i=0;
+	
+	for (i=0; i<MAX_FEATURE_LEN; i++){
+	    input[i] = (fann_type)vector[i];
+	}
+	/*create ANN*/
+	struct fann *ann = fann_create_from_file("digital.net");
+	
+	calc_out=fann_run(ann,input);
+
+	for (i=0; i<4; i++){
+	    if(fabs(calc_out[i]) < 0.5){
+		    calc_iout[i] = 0;
+		}
+		else{
+		    calc_iout[i] = 1;
+		}
+	}
+	
+	rec_num = calc_iout[0]*8 + calc_iout[1]*4 + calc_iout[2]*2 + calc_iout[3];
+	fann_destroy(ann);
+	
+	return rec_num;
 }
 
 

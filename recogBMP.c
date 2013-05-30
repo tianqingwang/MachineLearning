@@ -13,7 +13,7 @@
 #define MAX_CHAR_WIDTH     (11)
 #define WINDOW_STEP        (3)
 #define MIN_WINDOW_LEN     (3)
-#define MAX_WINDOW_LEN     (12)
+#define MAX_WINDOW_LEN     (10)
 #define ANN_OUTPUT_NUM     (4)
 
 unsigned char * recogBMP(char* filename);
@@ -29,6 +29,7 @@ void set_verticalbar_red(unsigned char *data, int width, int height, int leftpos
 void copy_char(unsigned char *src,unsigned char *dest, int left,int right, int top, int bot, int image_width);
 void PRINT_NORM(unsigned char *norm_data,int width, int height);
 void PRINT_FEATURE(unsigned int *vector, int feature_len);
+int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int top_height, int bot_height, int image_width);
 
 //unsigned int MedFilter(unsigned char *data,int width, int height);
 
@@ -681,94 +682,167 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 			delete[] feature_vector;
 		}
 		else{
-
 		    int new_left  = left;
-		    int new_right = left + 6;
-			
-		    while(new_right < right){
-			    printf("\n\nnew_left=%d  new_right=%d\n",new_left,new_right);
-			    unsigned char *sliced = new unsigned char[(new_right - new_left + 1)*(top_height - bot_height + 1)];
-				if (sliced == NULL){
-				    printf("(line=%d)allocate memory failure!\n",__LINE__);
-					exit(1);
-				}
-				
-				copy_char(data,sliced,new_left,new_right,top_height,bot_height,width);
-				
-				unsigned char *norm_data = new unsigned char[NORM_WIDTH*NORM_HEIGHT];
-				if (norm_data == NULL){
-				    printf("(line=%d)allocate memory failure!\n",__LINE__);
-					exit(1);
-				}
-				norm_data = ImageNorm(sliced,new_right - new_left + 1,top_height - bot_height + 1);
-				
-				delete[] sliced;
-				
-				unsigned int *feature_vector = new unsigned int[MAX_FEATURE_LEN];
-				if (feature_vector == NULL){
-				    printf("(line=%d)allocate memory failure!\n",__LINE__);
-					exit(1);
-				}
-				memset(feature_vector,0,MAX_FEATURE_LEN);
-				getfeatureVector(norm_data,feature_vector, NORM_WIDTH,NORM_HEIGHT);
-				
-				PRINT_NORM(norm_data,NORM_WIDTH,NORM_HEIGHT);
-			    PRINT_FEATURE(feature_vector,MAX_FEATURE_LEN);
-				
-				recogDigital(feature_vector,&calc_out[0]);
-				printf("%f %f %f %f\n",calc_out[0],calc_out[1],calc_out[2],calc_out[3]);
-				
-				int flag = 0;
-				for (i=0; i<4; i++){
-				    if (calc_out[i] < -0.2){
-					    flag = 1;
-						break;
-					}
-					else if (calc_out[i] > 0 && fabs(calc_out[i] - 0.5) <= 0.15){
-					    flag = 1;
-						break;
-					}
-				}
-				
-				if (flag == 1){
-				    /**/
-					new_right ++;
-				}
-				else{
-				    /*recog this number*/
-					for (i=0; i<4; i++){
-					    if (fabs(calc_out[i]) > 0.5){
-						    calc_iout[i] = 1;
+		    int new_right = new_left + MIN_WINDOW_LEN;
+			int loop = 0;
+			while(new_right < right){
+			    int recog_sliced = 0;
+				printf("new_left =%d, new_right=%d,left=%d,right=%d\n",new_left,new_right,left,right);
+				/*首先判断是否是1*/
+				if ((new_right - new_left) == MIN_WINDOW_LEN){
+			        recog_sliced = recog_one_sliced(data,new_left,new_right,top_height, bot_height,width);
+				    if (recog_sliced != 1){
+					    if (loop == 0){
+					        new_left = new_left -1;
+						    new_right = new_right -1;
+						    loop ++;
+							
+						}
+						else if (loop == 1){
+						    new_left = new_left +2;
+							new_right = new_right + 2;
+							loop ++;
+							
 						}
 						else{
-						    calc_iout[i] = 0;
+						    new_left = new_left -1;
+							new_right = new_left + MAX_WINDOW_LEN;
+							
+							loop = 0;
+							
 						}
-					}
-					
-					recogNum = (calc_iout[0]<<3) + (calc_iout[1]<<2) + (calc_iout[2]<<1) + calc_iout[3];
-					if (recogNum > 9){
-					    printf("recognized failure(recogNum = %d)\n",recogNum);
-					}
+				    }
 					else{
-					    printf("%d\n",recogNum);
-					}
-					set_verticalbar_red(data,width,height,new_left,new_right-1);
-				    new_left = new_right + 1;
-					new_right = new_left + 6;
-					if (new_right > right && (new_right - right) <=2){
-					    new_right = right -1;
+					    printf("%d\n",recog_sliced);
+						loop = 0;
+						new_left = new_right +1;
+						new_right = new_left + MIN_WINDOW_LEN;
+						
 					}
 				}
-				
-				delete[] norm_data;
-				delete[] feature_vector;
-			}
-		    
+				else if ((new_right - new_left) == MAX_WINDOW_LEN){
+				    recog_sliced = recog_one_sliced(data,new_left,new_right,top_height,bot_height,width);
+					if (recog_sliced == 1 || recog_sliced < 0 || recog_sliced >= 10){
+					    /*failed*/
+						if (loop ==0){
+						    new_left = new_left -1;
+							new_right = new_right -1;
+							loop ++;
+						}
+						else if (loop == 1){
+						    new_left = new_left + 2;
+							new_right = new_right + 2;
+							loop ++;
+						}
+						else{
+						    new_left = new_left -1;
+							new_right = new_left + MAX_WINDOW_LEN + 1;
+							loop = 0;
+						}
+					}
+					else{/*success*/
+					    printf("%d\n",recog_sliced);
+						loop = 0;
+						new_left = new_right + 1;
+						new_right = new_left + MIN_WINDOW_LEN;
+					}
+				}
+				else if ((new_right - new_left) == (MAX_WINDOW_LEN+1)){
+				    recog_sliced = recog_one_sliced(data,new_left,new_right,top_height,bot_height,width);
+					if (recog_sliced == 1 || recog_sliced < 0 || recog_sliced >= 10){
+					    /*failed*/
+						if (loop == 0){
+						    new_left = new_left - 1;
+							new_right = new_right - 1;
+							loop ++;
+						}
+						else if (loop == 1){
+						    new_left = new_left +2;
+							new_right = new_right +2;
+							loop ++;
+						}
+						else{
+						   /*totally failed*/
+						   new_left = new_right +1;
+						   new_right = new_left + MIN_WINDOW_LEN;
+						   loop = 0;
+						}
+					}
+					else{/*success*/
+					    printf("%d\n",recog_sliced);
+						loop = 0;
+						new_left = new_right + 1;
+						new_right = new_left + MIN_WINDOW_LEN;
+					}
+				}
+			}   			
 		}
 		
 		left = right;
 		
 	}
+}
+
+int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int top_height, int bot_height, int image_width)
+{
+    int i;
+	int recogNum = 0;
+	float calc_out[ANN_OUTPUT_NUM];
+    unsigned char *sliced = new unsigned char[(sliced_right - sliced_left + 1)*(top_height - bot_height + 1)];
+	if (sliced == NULL){
+	    printf("(line=%d)allocate memory failure!\n",__LINE__);
+	    exit(1);
+	}
+	
+	copy_char(data,sliced,sliced_left,sliced_right,top_height,bot_height,image_width);
+	unsigned char *norm_data = new unsigned char[NORM_WIDTH*NORM_HEIGHT];
+	norm_data = ImageNorm(sliced,sliced_right - sliced_left + 1,top_height - bot_height + 1);
+	
+	delete[] sliced;
+	
+	
+	unsigned int *feature_vector = new unsigned int[MAX_FEATURE_LEN];
+	if (feature_vector == NULL){
+		printf("(line=%d)allocate memory failure!\n",__LINE__);
+		exit(1);
+	}
+	memset(feature_vector,0,MAX_FEATURE_LEN);
+	getfeatureVector(norm_data,feature_vector, NORM_WIDTH,NORM_HEIGHT);
+				
+	PRINT_NORM(norm_data,NORM_WIDTH,NORM_HEIGHT);
+	PRINT_FEATURE(feature_vector,MAX_FEATURE_LEN);
+	
+	recogDigital(feature_vector,&calc_out[0]);
+	printf("%f %f %f %f\n",calc_out[0],calc_out[1],calc_out[2],calc_out[3]);
+	
+	/*check ANN output*/
+	int neg_num = 0;
+	for (i = 0; i<4; i++){
+	    if (calc_out[i] < -0.2){
+		    return -1;
+		}
+		else if (calc_out[i] < -0.1 && calc_out[i] >= -0.2){
+		    neg_num ++;
+			if (neg_num >=2){
+			    return -1;
+			}
+		}
+		else if (calc_out[i] > 0 && fabs(calc_out[i] - 0.5) <= 0.3){
+		    return -1;
+		}
+	}
+	
+	
+	for (i=0; i<4; i++){
+	    if (fabs(calc_out[i]) > 0.5){
+		    recogNum = 2*recogNum + 1;
+		}
+		else{
+		    recogNum = 2*recogNum;
+		}
+	}
+	
+	return recogNum;
 }
 
 void set_verticalbar_blue(unsigned char *data, int width, int height, int leftpos, int rightpos)

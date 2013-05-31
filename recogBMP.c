@@ -12,7 +12,7 @@
 #define NORM_HEIGHT        (12)
 #define MAX_CHAR_WIDTH     (11)
 #define WINDOW_STEP        (3)
-#define MIN_WINDOW_LEN     (4)
+#define MIN_WINDOW_LEN     (3)
 #define MAX_WINDOW_LEN     (10)
 #define ANN_OUTPUT_NUM     (4)
 
@@ -565,6 +565,8 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 	float calc_out[ANN_OUTPUT_NUM];
 	int   calc_iout[ANN_OUTPUT_NUM];
 	
+	unsigned char recogArr[13]={0};
+	int index = 0;
 	left = right = 0;
 	
 	while(1){
@@ -581,7 +583,7 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 				}
 			}
 			
-			if (pixel_num <= 2){
+			if (pixel_num <= 3){
 			    left ++;
 			}
 			else{
@@ -604,7 +606,7 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 				}
 			}
 			
-			if (pixel_num > 2){
+			if (pixel_num > 3){
 			    right++;
 			}
 			else{
@@ -667,11 +669,14 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 			
 		    if (recogNum > 9){
 		         printf("recognized failure(recogNum = %d)\n",recogNum);
-			     
+			     recogArr[index]='X';
+				 index++;
 //			     exit(1);
 		    }
 		    else{
 		        printf("%d\n",recogNum);
+				recogArr[index]=recogNum;
+				index++;
 		    }
 
 #if 1			
@@ -717,6 +722,8 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 								}
 								else{
 								    printf("%d\n",recog_sliced);
+									recogArr[index]=recog_sliced;
+									index++;
 									new_left = new_right + 1;
 									new_right = new_left + MIN_WINDOW_LEN;
 									/*go to next loop*/
@@ -725,12 +732,16 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 						}
 						else{
 						    printf("%d\n",recog_sliced);
+							recogArr[index] = recog_sliced;
+							index++;
 							new_left = temp_right + 1;
 							new_right = new_left + MIN_WINDOW_LEN;
 						}
 					}
 					else{
 					    printf("%d\n",recog_sliced);
+						recogArr[index] = recog_sliced;
+						index++;
 					    new_left = new_right + 1;
 						new_right = new_left + MIN_WINDOW_LEN;
 						/*if new_right > right, end this while loop*/
@@ -769,6 +780,8 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 							else{
 							    /*success*/
 							    printf("%d\n",recog_sliced);
+								recogArr[index]=recog_sliced;
+								index++;
 								new_left = temp_right + 1;
 								new_right = new_left + MIN_WINDOW_LEN;
 								/*go to next loop*/
@@ -779,6 +792,8 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 						else{
 						    /*success*/
 							printf("%d\n",recog_sliced);
+							recogArr[index] = recog_sliced;
+							index++;
 							new_left = temp_right + 1;
 							new_right = new_left + MIN_WINDOW_LEN;
 							/*go to next loop*/
@@ -786,6 +801,8 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 					}
 					else{
 					    printf("%d\n",recog_sliced);
+						recogArr[index]=recog_sliced;
+						index++;
 						new_left = new_right + 1;
 						new_right = new_left + MIN_WINDOW_LEN;
 						/*go to next while loop. if new_right > right, just stop this while loop*/
@@ -819,9 +836,13 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 								new_right = new_left + MIN_WINDOW_LEN;
 								/*do not do it again*/
 								printf("recog given up\n");
+								recogArr[index]='X';
+								index++;
 							}
 							else{
 							    printf("%d\n",recog_sliced);
+								recogArr[index]=recog_sliced;
+								index++;
 								new_left = temp_right + 1;
 								new_right = new_left + MIN_WINDOW_LEN;
 								/*go to next loop*/
@@ -830,6 +851,8 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 						}
 						else{
 						    printf("%d\n",recog_sliced);
+							recogArr[index]=recog_sliced;
+							index++;
 							new_left = temp_right + 1;
 							new_right = new_left + MIN_WINDOW_LEN;
 						}
@@ -837,108 +860,29 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 					else{
 					    /*success*/
 						printf("%d\n",recog_sliced);
+						recogArr[index]=recog_sliced;
+						index++;
 						new_left = new_right + 1;
 						new_right = new_left + MIN_WINDOW_LEN;
 						/*if new_right >= right ,just end this loop*/
 					}
 				}
-				
-#if 0
-				/*首先判断是否是1*/
-				if ((new_right - new_left) == MIN_WINDOW_LEN){
-			        recog_sliced = recog_one_sliced(data,new_left,new_right,top_height, bot_height,width);
-				    if (recog_sliced != 1){
-					    if (loop == 0){
-					        new_left = new_left -1;
-						    new_right = new_right -1;
-						    loop ++;
-							
-						}
-						else if (loop == 1){
-						    new_left = new_left +2;
-							new_right = new_right + 2;
-							loop ++;
-							
-						}
-						else{
-						    new_left = new_left -1;
-							new_right = new_left + MAX_WINDOW_LEN;
-							
-							loop = 0;
-							
-						}
-				    }
-					else{
-					    printf("%d\n",recog_sliced);
-						loop = 0;
-						new_left = new_right +1;
-						new_right = new_left + MIN_WINDOW_LEN;
-						
-					}
-				}
-				else if ((new_right - new_left) == MAX_WINDOW_LEN){
-				    
-				    recog_sliced = recog_one_sliced(data,new_left,new_right,top_height,bot_height,width);
-					if (recog_sliced == 1 || recog_sliced < 0 || recog_sliced >= 10){
-					    /*failed*/
-						if (loop ==0){
-						    new_left = new_left -1;
-							new_right = new_right -1;
-							loop ++;
-						}
-						else if (loop == 1){
-						    new_left = new_left + 2;
-							new_right = new_right + 2;
-							loop ++;
-						}
-						else{
-						    new_left = new_left -1;
-							new_right = new_left + MAX_WINDOW_LEN + 1;
-							loop = 0;
-						}
-					}
-					else{/*success*/
-					    printf("%d\n",recog_sliced);
-						loop = 0;
-						new_left = new_right + 1;
-						new_right = new_left + MIN_WINDOW_LEN;
-					}
-				}
-				else if ((new_right - new_left) == (MAX_WINDOW_LEN+1)){
-				    recog_sliced = recog_one_sliced(data,new_left,new_right,top_height,bot_height,width);
-					if (recog_sliced == 1 || recog_sliced < 0 || recog_sliced >= 10){
-					    /*failed*/
-						if (loop == 0){
-						    new_left = new_left - 1;
-							new_right = new_right - 1;
-							loop ++;
-						}
-						else if (loop == 1){
-						    new_left = new_left +2;
-							new_right = new_right +2;
-							loop ++;
-						}
-						else{
-						   /*totally failed*/
-						   new_left = new_right +1;
-						   new_right = new_left + MIN_WINDOW_LEN;
-						   loop = 0;
-						}
-					}
-					else{/*success*/
-					    printf("%d\n",recog_sliced);
-						loop = 0;
-						new_left = new_right + 1;
-						new_right = new_left + MIN_WINDOW_LEN;
-					}
-				}
-#endif
 			}   			
 		}
 		
 		left = right;
 		
 	}
+	
+	for (i=0; i<index; i++){
+	    if (recogArr[i] !='X'){
+		    printf("%d",recogArr[i]);
+		}
+		else{
+		    printf("%c",recogArr[i]);
+		}
+	}
+	printf("\n");
 }
 
 int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int top_height, int bot_height, int image_width)
@@ -985,7 +929,7 @@ int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int 
 			    return -1;
 			}
 		}
-		else if (calc_out[i] > 0 && fabs(calc_out[i] - 0.5) <= 0.3){
+		else if (calc_out[i] > 0 && fabs(calc_out[i] - 0.5) <= 0.25){
 		    return -1;
 		}
 	}

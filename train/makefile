@@ -12,3 +12,6 @@ CC=gcc
 
 $(OBJ):$(SRC)
 	$(CC) $(INCLUDEDIR) $(SRC) -o $(OBJ) $(LDFLAG) $(LIB) 
+
+clean:
+	rm $(OBJ)

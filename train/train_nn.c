@@ -15,7 +15,8 @@ int main()
 
     fann_set_activation_function_hidden(ann, FANN_SIGMOID_SYMMETRIC);
     fann_set_activation_function_output(ann, FANN_SIGMOID_SYMMETRIC);
-
+	fann_set_training_algorithm(ann,FANN_TRAIN_RPROP);
+	fann_randomize_weights(ann,0.0,0.1);
     fann_train_on_file(ann, "new_feature_train.set", max_epochs, epochs_between_reports, desired_error);
 
     fann_save(ann, "digital.net");

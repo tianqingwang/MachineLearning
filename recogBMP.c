@@ -12,7 +12,7 @@
 #define NORM_HEIGHT        (12)
 #define MAX_CHAR_WIDTH     (11)
 #define WINDOW_STEP        (3)
-#define MIN_WINDOW_LEN     (3)
+#define MIN_WINDOW_LEN     (5)
 #define MAX_WINDOW_LEN     (10)
 #define ANN_OUTPUT_NUM     (4)
 
@@ -30,6 +30,7 @@ void copy_char(unsigned char *src,unsigned char *dest, int left,int right, int t
 void PRINT_NORM(unsigned char *norm_data,int width, int height);
 void PRINT_FEATURE(unsigned int *vector, int feature_len);
 int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int top_height, int bot_height, int image_width);
+unsigned int IsHorizonLine(unsigned char *data, int left,int right,int image_width,int image_height);
 
 //unsigned int MedFilter(unsigned char *data,int width, int height);
 
@@ -86,7 +87,7 @@ unsigned char * recogBMP(char* filename)
             data[k+2] = tmp;
 
             int gray = (int)(((int)data[k])*30 + ((int)data[k+1])*59 + ((int)data[k+2])*11 + 50)/100;
-            if (gray >= 200) {/*white color*/
+            if (gray >= 230) {/*white color*/
                 data[k] = 255;
                 data[k+1] = 255;
                 data[k+2] = 255;
@@ -97,10 +98,13 @@ unsigned char * recogBMP(char* filename)
             }
         }
     }
-	
+
+
     ImageRotation(data,width,height);
+#if 1
 //    ImageThinning(data,width,height);
     ImageSplit(data,width,height);
+#endif
 #if 1
     /*for test only*/
     printf("width    :%d\n",width);
@@ -144,9 +148,10 @@ unsigned int ImageRotation(unsigned char *data, int width, int height)
             if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0) {
                 int new_x = (int)(j-i*tan(arc_angle));
                 int new_y = i;
+				new_x += 5;
                 if (new_x >=0 && new_x < width) {
                     int new_k = new_y*l_width + new_x*3;
-					new_x += 3;
+					
                     rot_data[new_k] = data[k];
                     rot_data[new_k+1] = data[k+1];
                     rot_data[new_k+2] = data[k+2];
@@ -229,6 +234,41 @@ unsigned int  getImageWidth(unsigned char *data,int width,int height)
     printf("right_border:%d\n",right_border);
 
     return right_border - left_border;
+}
+
+unsigned int IsHorizonLine(unsigned char *data, int left,int right,int image_width,int image_height)
+{
+    /*check top_height and bot_height*/
+	int l_width  = ((image_width*3 + 3)>>2)<<2;
+	int i,j,k;
+	
+	int top_height = 0;
+	int bot_height = 0;
+	
+	/*scan from bottom to top*/
+	for (i=0; i<image_height; i++){
+	    for (j=left; j<=right; j++){
+		    k = i*l_width + 3*j;
+			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
+			    top_height = i;
+				break;
+			}
+		}
+	}
+	
+	/*scan from top to bottom*/
+	for (i=image_height -1; i>=0; i--){
+	    for (j=left; j<=right; j++){
+		    k = i*l_width + 3*j;
+			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
+			    bot_height = i;
+				break;
+			}
+		}
+	}
+	
+	
+	return (top_height - bot_height)<=2? 1 : 0;
 }
 
 unsigned int getImageHeight(unsigned char *data,int width,int height,int *top_height,int *bot_height)
@@ -583,7 +623,7 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 				}
 			}
 			
-			if (pixel_num <= 3){
+			if (pixel_num <= 1){
 			    left ++;
 			}
 			else{
@@ -606,7 +646,7 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 				}
 			}
 			
-			if (pixel_num > 3){
+			if (pixel_num > 1){
 			    right++;
 			}
 			else{
@@ -623,7 +663,13 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 			continue;
 		}
 		
+		if (IsHorizonLine(data,left,right,width,height) == 1){ /* - */
+		    left = right + 1;
+		    continue;
+		}
 		
+		set_verticalbar_blue(data,width,height,left,right-1);
+#if 1		
 		int recogNum = 0;
 		if ((right-left) <= MAX_CHAR_WIDTH){
 		    unsigned char *one_ch = new unsigned char[(right-left)*(top_height-bot_height+1)];
@@ -637,7 +683,7 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 			}
 			
 			norm_data = ImageNorm(one_ch,right-left,top_height-bot_height+1);
-			
+//			ImageThinning(norm_data,NORM_WIDTH,NORM_HEIGHT);
 			unsigned int *feature_vector = new unsigned int[MAX_FEATURE_LEN];
 			if (feature_vector == NULL){
 			    printf("(%d) allocate memory failed\n",__LINE__);
@@ -698,12 +744,25 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 				
 				if ((new_right - new_left) == MIN_WINDOW_LEN){
 				    printf("new_left=%d,new_right=%d,left=%d,right=%d\n",new_left,new_right,left,right);
+					if (IsHorizonLine(data,new_left,new_right,width,height) == 1){
+					    new_left = new_right + 1;
+						new_right = new_left + MIN_WINDOW_LEN;
+						continue;
+					}
+					
 				    recog_sliced = recog_one_sliced(data,new_left,new_right,top_height, bot_height, width);
 					
 					if (recog_sliced != 1){
 					    temp_left = new_left -1;
 						temp_right = new_right -1;
 						printf("new_left=%d,new_right=%d,left=%d,right=%d\n",temp_left,temp_right,left,right);
+						
+						if (IsHorizonLine(data,temp_left,temp_right,width,height) == 1){
+						    new_left = temp_right + 1;
+							new_right = new_left + MIN_WINDOW_LEN;
+							continue;
+						}
+						
 						recog_sliced = recog_one_sliced(data,temp_left,temp_right,top_height,bot_height,width);
 						if (recog_sliced != 1){
 						    temp_left = new_left + 1;
@@ -713,19 +772,28 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 							}
 							else{
 							    printf("new_left=%d,new_right=%d,left=%d,right=%d\n",temp_left,temp_right,left,right);
+								if (IsHorizonLine(data,temp_left,temp_right,width,height) == 1){
+								    new_left = temp_right + 1;
+									new_right = new_left + MIN_WINDOW_LEN;
+									continue;
+								}
 							    recog_sliced = recog_one_sliced(data,temp_left,temp_right,top_height,bot_height,width);
 								if (recog_sliced != 1){
-								    new_right = new_left + MAX_WINDOW_LEN;
-									if (new_right >= right){
-									    new_right = right -1;
-									}
+								    //new_right = new_left + MAX_WINDOW_LEN;
+									
+									//if (new_right >= right){
+									//    new_right = right -1;
+									//}
+									new_right = new_left + MIN_WINDOW_LEN + 1;
+									
 								}
 								else{
 								    printf("%d\n",recog_sliced);
 									recogArr[index]=recog_sliced;
 									index++;
-									new_left = new_right + 1;
-									new_right = new_left + MIN_WINDOW_LEN;
+									//new_left = new_right + 1;
+									new_left = temp_right + 1;
+									new_right = new_left + MIN_WINDOW_LEN ;
 									/*go to next loop*/
 								}
 							}
@@ -748,17 +816,87 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 					}
 				}
 				
-				if ((new_right - new_left) > MIN_WINDOW_LEN && (new_right - new_left) <= MAX_WINDOW_LEN){
+				if ((new_right - new_left) == (MIN_WINDOW_LEN + 1)){
+				    printf("new_left=%d,new_right=%d,left=%d,right=%d\n",new_left,new_right,left,right);
+					if (IsHorizonLine(data,new_left,new_right,width,height) == 1){
+					    new_left = new_right + 1;
+						new_right = new_left + MIN_WINDOW_LEN;
+						continue;
+					}
+					recog_sliced = recog_one_sliced(data,new_left,new_right,top_height, bot_height, width);
+					if (recog_sliced != 1){
+					    temp_left = new_left - 1;
+						temp_right = new_right - 1;
+						printf("new_left=%d,new_right=%d,left=%d,right=%d\n",temp_left,temp_right,left,right);
+						if (IsHorizonLine(data,temp_left,temp_right,width, height) == 1){
+						    new_left = new_right + 1;
+							new_right = new_left + MIN_WINDOW_LEN;
+							continue;
+						}
+						
+						recog_sliced = recog_one_sliced(data,temp_left,temp_right,top_height,bot_height,width);
+						if (recog_sliced != 1){
+						    temp_left = new_left + 1;
+							temp_right = new_right + 1;
+							 printf("new_left=%d,new_right=%d,left=%d,right=%d\n",temp_left,temp_right,left,right);
+							if (temp_right >= right){
+							    new_right = right; /*do nothing, just end this loop*/
+							}
+							else{
+							    if (IsHorizonLine(data,temp_left,temp_right,width,height) == 1){
+								    new_left = temp_right + 1;
+									new_right = new_left + MIN_WINDOW_LEN;
+									continue;
+								}
+								
+								recog_sliced = recog_one_sliced(data,temp_left,temp_right,top_height,bot_height,width);
+								if (recog_sliced != 1){
+								    new_right = new_left + MAX_WINDOW_LEN;
+									if (new_right >= right){
+									    new_right = right - 1;
+									}
+								}
+								else{
+								    printf("%d\n",recog_sliced);
+									recogArr[index] = recog_sliced;
+									index++;
+									
+									new_left = temp_right + 1;
+									new_right = new_left + MIN_WINDOW_LEN;
+								}
+							}
+							
+						}
+						else{
+						    printf("%d\n",recog_sliced);
+							recogArr[index] = recog_sliced;
+							index ++;
+							
+							new_left = temp_right + 1;
+							new_right = new_left + MIN_WINDOW_LEN; /*if new_right > right,just end this loop*/
+						}
+					}
+					else{
+					    printf("%d\n",recog_sliced);
+						recogArr[index] = recog_sliced;
+						index++;
+						
+					    new_left = new_right + 1;
+						new_right = new_left + MIN_WINDOW_LEN;
+					}
+				}
+				
+				if ((new_right - new_left) > (MIN_WINDOW_LEN+1) && (new_right - new_left) <= MAX_WINDOW_LEN){
 				    printf("new_left=%d,new_right=%d,left=%d,right=%d\n",new_left,new_right,left,right);
 				    recog_sliced = recog_one_sliced(data,new_left,new_right,top_height,bot_height,width);
-					if (recog_sliced == 1 || recog_sliced < 0 || recog_sliced >= 10){
+					if ((recog_sliced == 1 || recog_sliced < 0 || recog_sliced >= 10) || (index == 1 && (recog_sliced != 3 || recog_sliced != 5 || recog_sliced != 8))){
 					    /*failed*/
 						temp_left = new_left -1;
 						temp_right = new_right -1;
 						/*recognize again*/
 						printf("new_left=%d,new_right=%d,left=%d,right=%d\n",temp_left,temp_right,left,right);
 						recog_sliced = recog_one_sliced(data,temp_left,temp_right,top_height,bot_height,width);
-						if (recog_sliced == 1 || recog_sliced < 0 || recog_sliced >= 10){
+						if ((recog_sliced < 0 || recog_sliced >= 10) ||(index == 1 && (recog_sliced != 3 || recog_sliced != 5 || recog_sliced != 8))){
 						    /*failed again*/
 							temp_left = new_left + 1;
 							temp_right = new_right + 1;
@@ -769,7 +907,7 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 							/*the last try*/
 							printf("new_left=%d,new_right=%d,left=%d,right=%d\n",temp_left,temp_right,left,right);
 							recog_sliced = recog_one_sliced(data,temp_left,temp_right,top_height,bot_height,width);
-							if (recog_sliced == 1 || recog_sliced < 0 || recog_sliced >= 10){
+							if (( recog_sliced < 0 || recog_sliced >= 10) || (index == 1 && (recog_sliced != 3 || recog_sliced != 5 || recog_sliced != 8))){
 							    /*still failed*/
 								/*keep new_left unchange*/
 								new_right = new_left + (MAX_WINDOW_LEN + 1);
@@ -812,14 +950,14 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 				if ((new_right - new_left) == (MAX_WINDOW_LEN + 1)){
 				    printf("new_left=%d,new_right=%d,left=%d,right=%d\n",new_left,new_right,left,right);
 				    recog_sliced = recog_one_sliced(data,new_left,new_right,top_height,bot_height,width);
-					if (recog_sliced == 1 || recog_sliced < 0 || recog_sliced >= 10){
+					if ((recog_sliced < 0 || recog_sliced >= 10) || (index == 1 && (recog_sliced != 3 || recog_sliced != 5 || recog_sliced != 8))){
 					    /*failed*/
 						temp_left = new_left - 1;
 						temp_right = new_right -1;
 						/*recognize again*/
 						printf("new_left=%d,new_right=%d,left=%d,right=%d\n",temp_left,temp_right,left,right);
 						recog_sliced = recog_one_sliced(data,temp_left,temp_right,top_height,bot_height,width);
-						if (recog_sliced == 1 || recog_sliced < 0 || recog_sliced >= 10){
+						if ((recog_sliced < 0 || recog_sliced >= 10) || (index == 1 && (recog_sliced != 3 || recog_sliced != 5 || recog_sliced != 8))){
 						    /*failed again*/
 							temp_left = new_left + 1;
 							temp_right = new_right + 1;
@@ -830,12 +968,12 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 							/*last recog try*/
 							printf("new_left=%d,new_right=%d,left=%d,right=%d\n",temp_left,temp_right,left,right);
 							recog_sliced = recog_one_sliced(data,temp_left,temp_right,top_height,bot_height,width);
-							if (recog_sliced == 1 || recog_sliced < 0 || recog_sliced >= 10){
+							if ((recog_sliced == 1 || recog_sliced < 0 || recog_sliced >= 10) || (index == 1 && (recog_sliced != 3 || recog_sliced != 5 || recog_sliced != 8))){
 							    /*totally failed*/
 								new_left = new_right + 1;
 								new_right = new_left + MIN_WINDOW_LEN;
 								/*do not do it again*/
-								printf("recog given up\n");
+								printf("%d:recog given up\n",__LINE__);
 								recogArr[index]='X';
 								index++;
 							}
@@ -869,7 +1007,7 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 				}
 			}   			
 		}
-		
+#endif		
 		left = right;
 		
 	}
@@ -899,7 +1037,7 @@ int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int 
 	copy_char(data,sliced,sliced_left,sliced_right,top_height,bot_height,image_width);
 	unsigned char *norm_data = new unsigned char[NORM_WIDTH*NORM_HEIGHT];
 	norm_data = ImageNorm(sliced,sliced_right - sliced_left + 1,top_height - bot_height + 1);
-	
+//	ImageThinning(norm_data,NORM_WIDTH,NORM_HEIGHT);
 	delete[] sliced;
 	
 	
@@ -918,6 +1056,7 @@ int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int 
 	printf("%f %f %f %f\n",calc_out[0],calc_out[1],calc_out[2],calc_out[3]);
 	
 	/*check ANN output*/
+#if 0	
 	int neg_num = 0;
 	for (i = 0; i<4; i++){
 	    if (calc_out[i] < -0.2){
@@ -933,7 +1072,18 @@ int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int 
 		    return -1;
 		}
 	}
-	
+#endif
+
+    for (i=0; i<4; i++){
+        if (calc_out[i] < (-0.2)){
+		    printf("calc_out[%d]=%f\n",i,calc_out[i]);
+		    return -1;
+		}
+		else if (calc_out[i] >= 0.25 && calc_out[i] <= 0.75){
+		    printf("calc_out[%d]=%f\n",i,calc_out[i]);
+		    return -1;
+		}
+	}	
 	
 	for (i=0; i<4; i++){
 	    if (fabs(calc_out[i]) > 0.5){
@@ -1071,7 +1221,7 @@ unsigned int getfeatureVector(unsigned char *data, unsigned int *vector,int imag
             vector[2*s+w] = count;
         }
     }
-
+#if 0
     /*垂直线穿过1/3,2/3宽度位置时的黑像素个数*/
     count = 0;
     for (i=0; i<image_height; i++){
@@ -1107,7 +1257,41 @@ unsigned int getfeatureVector(unsigned char *data, unsigned int *vector,int imag
 		}
 	}
 	vector[11] = count;
+#else
+    count = 0;
 	
+	for (i=0; i<image_height-1; i++){
+	    if ((data[(i+1)*image_width + third_width] -  data[i*image_width + third_width]) == 1){
+            count++;
+		}
+	}
+	vector[8] = count;
+	
+	count = 0;
+	for (i=0; i<image_height-1; i++){
+	    if ((data[(i+1)*image_width + 2*third_width] - data[i*image_width + 2*third_width]) == 1){
+		    count ++;
+		}
+	}
+	vector[9] = count;
+	
+	count = 0;
+	for (i=0; i<image_width -1; i++){
+	   if ((data[third_height*image_width + i + 1] - data[third_height*image_width + i]) == 1){
+	       count++;
+	   }
+	}
+	
+	vector[10] = count;
+	
+	count=0;
+	for (i=0; i<image_width -1; i++){
+	    if ((data[2*third_height*image_width + i+1] - data[2*third_height*image_width + i]) == 1){
+		    count++;
+		}
+	}
+	vector[11] = count;
+#endif	
 	/*图像总的黑像素个数*/
 	count = 0;
 	for (i=0; i<image_height; i++){

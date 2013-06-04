@@ -102,7 +102,7 @@ unsigned char * recogBMP(char* filename)
     }
 
 
-    ImageRotation(data,width,height);
+//    ImageRotation(data,width,height);
 #if 1
 //    ImageThinning(data,width,height);
     ImageSplit(data,width,height);

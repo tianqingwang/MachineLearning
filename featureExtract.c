@@ -26,6 +26,7 @@ unsigned int ImageSplit(unsigned char *data, int width, int height);
 unsigned int ImageThinning(unsigned char *data, int width, int height);
 unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width, int image_height);
 unsigned int recogDigital(float *vector,float *calc_out);
+void featureExtract(unsigned char *data,int width, int height);
 void set_verticalbar_blue(unsigned char *data, int width, int height, int leftpos, int rightpos);
 void set_verticalbar_red(unsigned char *data, int width, int height, int leftpos, int rightpos);
 void copy_char(unsigned char *src,unsigned char *dest, int left,int right, int top, int bot, int image_width);
@@ -33,7 +34,7 @@ void PRINT_NORM(unsigned char *norm_data,int width, int height);
 void PRINT_FEATURE(float *vector, int feature_len);
 int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int top_height, int bot_height, int image_width,int image_height);
 unsigned int IsHorizonLine(unsigned char *data, int left,int right,int image_width,int image_height);
-
+static unsigned char *ImageNorm(unsigned char *data,int width, int height);
 //unsigned int MedFilter(unsigned char *data,int width, int height);
 
 int main(int argc, char * argv[])
@@ -102,7 +103,7 @@ unsigned char * recogBMP(char* filename)
     }
 
 
-    ImageRotation(data,width,height);
+//    ImageRotation(data,width,height);
 	
 	featureExtract(data,width,height);
     return 0;
@@ -115,7 +116,55 @@ void featureExtract(unsigned char *data,int width, int height)
 	
 	int l_width = ((width*3 + 3)>>2)<<2;
     	
-	for (i=0; i<width; i++){
+	for (i=0; i<width; i+=2){
+	    int new_left = i;
+		int new_right = i+MIN_WINDOW_LEN;
+		int top_height = 0;
+		int bot_height = 0;
+		
+		getSlicedHeight(data,new_left,new_right,width,height,&top_height,&bot_height);
+		printf("left=%d,right=%d,top=%d,bot=%d\n",new_left,new_right,top_height,bot_height);
+		unsigned char *one_ch = new unsigned char[(new_right-new_left + 1)*(top_height-bot_height+1)];
+		copy_char(data,one_ch,new_left,new_right,top_height,bot_height,width);
+		unsigned char *norm_data = new unsigned char[NORM_WIDTH*NORM_HEIGHT];
+		norm_data = ImageNorm(one_ch,new_right - new_left+1, top_height-bot_height+1);
+		
+		float *feature_vector = new float[MAX_FEATURE_LEN];
+		memset(feature_vector,0,MAX_FEATURE_LEN);
+		getfeatureVector(norm_data,feature_vector,NORM_WIDTH,NORM_HEIGHT);
+		
+		PRINT_NORM(norm_data,NORM_WIDTH,NORM_HEIGHT);
+	    PRINT_FEATURE(feature_vector,MAX_FEATURE_LEN);
+		
+		delete[] one_ch;
+		delete[] norm_data;
+		delete[] feature_vector;
+	}
+	
+	
+	for (i=0; i<width; i+=2){
+	    int new_left = i;
+		int new_right = i+MAX_WINDOW_LEN;
+		int top_height = 0;
+		int bot_height = 0;
+		
+		getSlicedHeight(data,new_left,new_right,width,height,&top_height,&bot_height);
+		printf("left=%d,right=%d,top=%d,bot=%d\n",new_left,new_right,top_height,bot_height);
+		unsigned char *one_ch = new unsigned char[(new_right-new_left + 1)*(top_height-bot_height+1)];
+		copy_char(data,one_ch,new_left,new_right,top_height,bot_height,width);
+		unsigned char *norm_data = new unsigned char[NORM_WIDTH*NORM_HEIGHT];
+		norm_data = ImageNorm(one_ch,new_right - new_left+1, top_height-bot_height+1);
+		
+		float *feature_vector = new float[MAX_FEATURE_LEN];
+		memset(feature_vector,0,MAX_FEATURE_LEN);
+		getfeatureVector(norm_data,feature_vector,NORM_WIDTH,NORM_HEIGHT);
+		
+		PRINT_NORM(norm_data,NORM_WIDTH,NORM_HEIGHT);
+	    PRINT_FEATURE(feature_vector,MAX_FEATURE_LEN);
+		
+		delete[] one_ch;
+		delete[] norm_data;
+		delete[] feature_vector;
 	}
 }
 
@@ -632,16 +681,68 @@ static int RoughSplit(unsigned char *data,int *pos,int width,int height)
 static unsigned char *ImageNorm(unsigned char *data,int width, int height)
 {
     int i,j;
+	int left = 0;
+	int right = 0;
+	int top = 0;
+	int bot = 0;
+	
+	int actual_width = 0;
+	int actual_height = 0;
+	
     int new_x, new_y;
 
     /*normalize the data to NORM_WIDTH X NORM_HEIGHT*/
     unsigned char *norm_data  = new unsigned char[NORM_WIDTH*NORM_HEIGHT];
     memset(norm_data,0,NORM_WIDTH*NORM_HEIGHT);
-
-    for ( i = 0; i<width; i++) {
-        for (j=0; j<height; j++) {
-            new_x = (int)(NORM_WIDTH*i/width);
-            new_y = (int)(NORM_HEIGHT*j/height);
+	
+	/*check left and right*/
+	for (i=0; i<width;i++){
+	    for (j=0; j<height; j++){
+		    if (data[j*width + i] == 1){
+			    left = i;
+				break;
+			}
+		}
+	}
+	
+	for (i=width-1; i>=0; i--){
+	    for (j=0; j<height; j++){
+		    if (data[j*width + i] == 1){
+			    right = i;
+				break;
+			}
+		}
+	}
+	
+	actual_width = right - left + 1;
+	
+	/*check top and bot*/
+	for (i=0; i<height; i++){
+	    for (j=0; j<width; j++){
+		    if (data[i*width + j] == 1){
+			    top = i;
+				break;
+			}
+		}
+	}
+	
+	for (i=height -1; i>=0; i--){
+	    for (j=0; j<width; j++){
+		    if (data[i*width + j] == 1){
+			    bot = i;
+				break;
+			}
+		}
+	}
+	
+	actual_height = top - bot + 1;
+	
+	printf("left=%d,right=%d,top=%d,bot=%d\n",left,right,top,bot);
+	
+    for ( i = left; i<=right; i++) {
+        for (j=bot; j<=top; j++) {
+            new_x = (int)(NORM_WIDTH*i/actual_width);
+            new_y = (int)(NORM_HEIGHT*j/actual_height);
             if (data[j*width + i] == 0) {
                 norm_data[new_y*NORM_WIDTH + new_x] = 0;
             } else {

@@ -12,8 +12,8 @@
 #define NORM_HEIGHT        (12)
 #define MAX_CHAR_WIDTH     (11)
 #define WINDOW_STEP        (3)
-#define MIN_WINDOW_LEN     (5)
-#define MAX_WINDOW_LEN     (10)
+#define MIN_WINDOW_LEN     (4)
+#define MAX_WINDOW_LEN     (11)
 #define ANN_OUTPUT_NUM     (4)
 
 unsigned char * recogBMP(char* filename);
@@ -116,56 +116,35 @@ void featureExtract(unsigned char *data,int width, int height)
 	
 	int l_width = ((width*3 + 3)>>2)<<2;
     	
-	for (i=0; i<width; i+=2){
-	    int new_left = i;
-		int new_right = i+MIN_WINDOW_LEN;
-		int top_height = 0;
-		int bot_height = 0;
-		
-		getSlicedHeight(data,new_left,new_right,width,height,&top_height,&bot_height);
-		printf("left=%d,right=%d,top=%d,bot=%d\n",new_left,new_right,top_height,bot_height);
-		unsigned char *one_ch = new unsigned char[(new_right-new_left + 1)*(top_height-bot_height+1)];
-		copy_char(data,one_ch,new_left,new_right,top_height,bot_height,width);
-		unsigned char *norm_data = new unsigned char[NORM_WIDTH*NORM_HEIGHT];
-		norm_data = ImageNorm(one_ch,new_right - new_left+1, top_height-bot_height+1);
-		
-		float *feature_vector = new float[MAX_FEATURE_LEN];
-		memset(feature_vector,0,MAX_FEATURE_LEN);
-		getfeatureVector(norm_data,feature_vector,NORM_WIDTH,NORM_HEIGHT);
-		
-		PRINT_NORM(norm_data,NORM_WIDTH,NORM_HEIGHT);
-	    PRINT_FEATURE(feature_vector,MAX_FEATURE_LEN);
-		
-		delete[] one_ch;
-		delete[] norm_data;
-		delete[] feature_vector;
+	for (i=0; i<width; i++){
+	    for (j=MIN_WINDOW_LEN; j<= MAX_WINDOW_LEN; j++){
+	        int new_left = i;
+		    int new_right = i+j;
+		    int top_height = 0;
+		    int bot_height = 0;
+		    
+		    getSlicedHeight(data,new_left,new_right,width,height,&top_height,&bot_height);
+		    printf("left=%d,right=%d,top=%d,bot=%d\n",new_left,new_right,top_height,bot_height);
+		    unsigned char *one_ch = new unsigned char[(new_right-new_left + 1)*(top_height-bot_height+1)];
+		    copy_char(data,one_ch,new_left,new_right,top_height,bot_height,width);
+		    unsigned char *norm_data = new unsigned char[NORM_WIDTH*NORM_HEIGHT];
+		    norm_data = ImageNorm(one_ch,new_right - new_left+1, top_height-bot_height+1);
+		    
+		    float *feature_vector = new float[MAX_FEATURE_LEN];
+		    memset(feature_vector,0,MAX_FEATURE_LEN);
+		    getfeatureVector(norm_data,feature_vector,NORM_WIDTH,NORM_HEIGHT);
+		    
+		    PRINT_NORM(norm_data,NORM_WIDTH,NORM_HEIGHT);
+	        PRINT_FEATURE(feature_vector,MAX_FEATURE_LEN);
+		    
+//		    delete[] one_ch;
+//		    delete[] norm_data;
+//		    delete[] feature_vector;
+		}
 	}
 	
 	
-	for (i=0; i<width; i+=2){
-	    int new_left = i;
-		int new_right = i+MAX_WINDOW_LEN;
-		int top_height = 0;
-		int bot_height = 0;
-		
-		getSlicedHeight(data,new_left,new_right,width,height,&top_height,&bot_height);
-		printf("left=%d,right=%d,top=%d,bot=%d\n",new_left,new_right,top_height,bot_height);
-		unsigned char *one_ch = new unsigned char[(new_right-new_left + 1)*(top_height-bot_height+1)];
-		copy_char(data,one_ch,new_left,new_right,top_height,bot_height,width);
-		unsigned char *norm_data = new unsigned char[NORM_WIDTH*NORM_HEIGHT];
-		norm_data = ImageNorm(one_ch,new_right - new_left+1, top_height-bot_height+1);
-		
-		float *feature_vector = new float[MAX_FEATURE_LEN];
-		memset(feature_vector,0,MAX_FEATURE_LEN);
-		getfeatureVector(norm_data,feature_vector,NORM_WIDTH,NORM_HEIGHT);
-		
-		PRINT_NORM(norm_data,NORM_WIDTH,NORM_HEIGHT);
-	    PRINT_FEATURE(feature_vector,MAX_FEATURE_LEN);
-		
-		delete[] one_ch;
-		delete[] norm_data;
-		delete[] feature_vector;
-	}
+
 }
 
 /*need to add automatic angle adjusting*/
@@ -714,7 +693,7 @@ static unsigned char *ImageNorm(unsigned char *data,int width, int height)
 		}
 	}
 	
-	actual_width = right - left + 1;
+	actual_width = left-right + 1;
 	
 	/*check top and bot*/
 	for (i=0; i<height; i++){
@@ -737,9 +716,9 @@ static unsigned char *ImageNorm(unsigned char *data,int width, int height)
 	
 	actual_height = top - bot + 1;
 	
-	printf("left=%d,right=%d,top=%d,bot=%d\n",left,right,top,bot);
+//	printf("left=%d,right=%d,top=%d,bot=%d\n",left,right,top,bot);
 	
-    for ( i = left; i<=right; i++) {
+    for ( i = right; i<=left; i++) {
         for (j=bot; j<=top; j++) {
             new_x = (int)(NORM_WIDTH*i/actual_width);
             new_y = (int)(NORM_HEIGHT*j/actual_height);

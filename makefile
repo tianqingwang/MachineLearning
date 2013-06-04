@@ -1,14 +1,20 @@
 CC=g++
 
 SRC=recogBMP.c
-TARGET=recbmp
+FEATURE_SRC=featureExtract.c
 
+TARGET=recbmp
+FEATURETARGET=fExtract
 INCLUDEDIR=-I./fann
 LDFLAG=-L./fann
 LIB=-lfloatfann
 LIB+=-lm
 
+all:$(TARGET) $(FEATURETARGET)
+
 $(TARGET):$(SRC)
 	$(CC) $(INCLUDEDIR) $(SRC) -o $(TARGET) $(LDFLAG) $(LIB)
+$(FEATURETARGET):$(FEATURE_SRC)
+	$(CC) $(INCLUDEDIR) $(FEATURE_SRC) -o $(FEATURETARGET) $(LDFLAG) $(LIB)
 clean:
-	rm $(TARGET)
+	rm $(TARGET) $(FEATURETARGET)

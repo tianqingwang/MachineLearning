@@ -103,23 +103,20 @@ unsigned char * recogBMP(char* filename)
 
 
     ImageRotation(data,width,height);
-#if 1
-//    ImageThinning(data,width,height);
-    ImageSplit(data,width,height);
-#endif
-#if 1
-    /*for test only*/
-    printf("width    :%d\n",width);
-    printf("height   :%d\n",height);
+	
+	featureExtract(data,width,height);
+    return 0;
+}
 
-    FILE *fo = fopen("b.bmp","wb");
-
-    fwrite(info,sizeof(unsigned char),54,fo);
-    fwrite(data,sizeof(unsigned char),size,fo);
-    
-    fclose(fo);
-#endif
-    return data;
+void featureExtract(unsigned char *data,int width, int height)
+{
+    int i=0; 
+	int j=0;
+	
+	int l_width = ((width*3 + 3)>>2)<<2;
+    	
+	for (i=0; i<width; i++){
+	}
 }
 
 /*need to add automatic angle adjusting*/

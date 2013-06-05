@@ -218,6 +218,9 @@ void featureExtract(unsigned char *data,int width, int height)
     int i=0; 
 	int j=0;
 	
+	float calc_out[ANN_OUTPUT_NUM];
+	int   calc_iout[ANN_OUTPUT_NUM];
+	
 	int l_width = ((width*3 + 3)>>2)<<2;
     unsigned char *norm_data = new unsigned char[NORM_WIDTH*NORM_HEIGHT];	
 	for (i=0; i<width; i++){
@@ -237,9 +240,11 @@ void featureExtract(unsigned char *data,int width, int height)
 		    float *feature_vector = new float[MAX_FEATURE_LEN];
 		    memset(feature_vector,0,MAX_FEATURE_LEN);
 		    getfeatureVector(norm_data,feature_vector,NORM_WIDTH,NORM_HEIGHT);
-		    
+		    recogDigital(feature_vector,&calc_out[0]);
+			//printf("calc_out[0]=%0.3f,calc_out[1]=%0.3f,calc_out[2]=%0.3f,calc_out[3]=%0.3f\n",calc_out[0],calc_out[1],calc_out[2],calc_out[3]);
 		    PRINT_NORM(norm_data,NORM_WIDTH,NORM_HEIGHT);
 	        PRINT_FEATURE(feature_vector,MAX_FEATURE_LEN);
+			printf("calc_out[0]=%0.3f,calc_out[1]=%0.3f,calc_out[2]=%0.3f,calc_out[3]=%0.3f\n",calc_out[0],calc_out[1],calc_out[2],calc_out[3]);
 		}
 	}
 	

@@ -311,7 +311,6 @@ static void ReadGIF(FILE *fd, int imageNumber){
 static int ReadColorMap(FILE *fd, int number, RGBQUAD *buffer){
 	int i;
 	unsigned char rgb[3];
-
 	for (i = 0; i < number; ++i, buffer++) {
 		if (! ReadOK(fd, rgb, sizeof(rgb)))
 			pm_error("bad colormap" );
@@ -618,6 +617,7 @@ static void ReadImage(FILE *fd, int len, int height, RGBQUAD *cmap,
 			break;
 		case 8:
 			scanline[xpos]= v;
+			printf("v=%d,R=%d,G=%d,B=%d\n",v,cmap[v].rgbRed,cmap[v].rgbGreen,cmap[v].rgbBlue);
 			break;
 		}
 		++xpos;

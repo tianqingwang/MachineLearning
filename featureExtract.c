@@ -7,7 +7,7 @@
 #include "floatfann.h"
 
 #define PI 3.1415926535898
-#define MAX_FEATURE_LEN    (13)
+#define MAX_FEATURE_LEN    (17)
 #define NORM_WIDTH         (12)
 #define NORM_HEIGHT        (12)
 #define MAX_CHAR_WIDTH     (11)
@@ -1348,6 +1348,18 @@ void PRINT_FEATURE(float *vector, int feature_len)
 
 unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width, int image_height)
 {
+/*just print out all elements*/
+   int i,j;
+   for (i=0; i<image_height; i++){
+       for (j=0; j<image_width; j++){
+	       printf("%d ",data[i*image_width + j]);
+	   }
+   }
+   
+   printf("\n\n");
+
+
+#if 0
     int i,j;
     /*split image into 4*2 blocks*/
 //  _____________
@@ -1384,14 +1396,24 @@ unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width
         }
     }
 #if 1
-    /*垂直线穿过1/3,2/3宽度位置时的黑像素个数*/
+    /*垂直线穿过0/3,1/3,2/3,3/3宽度位置时的黑像素个数*/
     count = 0;
+	for (i=0; i<image_height; i++){
+	    if (data[i*image_width] == 1){
+		    count++;
+		}
+	}
+	
+	vector[8] = 1.0*count/12;
+	
+	count = 0;
     for (i=0; i<image_height; i++){
 	    if (data[i*image_width + third_width] == 1){
 		    count ++;
 		}
 	}
-	vector[8] = 1.0*count/12;
+	vector[9] = 1.0*count/12;
+	
 	
 	count = 0;
 	for (i=0; i<image_height; i++){
@@ -1399,18 +1421,34 @@ unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width
 		    count++;
 		}
 	}
-	vector[9] = 1.0*count/12;
+	vector[10] = 1.0*count/12;
 	
+	count = 0;
+	for (i=0; i<image_height; i++){
+	    if (data[i*image_width + 3*third_width] == 1){
+		    count ++;
+		}
+	}
+	vector[11] = 1.0*count/12;
 
 
-    /*水平线穿过图像1/3和2/3高度位置时的黑像素个数*/
+    /*水平线穿过图像0/3,1/3,2/3,3/3高度位置时的黑像素个数*/
+	
+	count = 0;
+	for (i=0; i<image_width; i++){
+	    if (data[0*image_width + i] == 1){
+		    count++;
+		}
+	}
+	vector[12] = 1.0*count/12;
+	
     count = 0;
 	for (i=0; i<image_width; i++){
 	    if (data[third_height*image_width + i] == 1){
 		    count++;
 		}
 	}
-	vector[10] = 1.0*count/12;
+	vector[13] = 1.0*count/12;
 	
 	count = 0;
 	for (i=0; i<image_width; i++){
@@ -1418,7 +1456,15 @@ unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width
 		    count++;
 		}
 	}
-	vector[11] = 1.0*count/12;
+	vector[14] = 1.0*count/12;
+	
+	count = 0;
+	for (i=0; i<image_width; i++){
+	    if (data[3*third_height*image_width + i] == 1){
+		    count++;
+		}
+	}
+	vector[15] = 1.0*count/12;
 #else
     count = 0;
 	
@@ -1463,7 +1509,7 @@ unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width
 			}
 		}
 	}
-	vector[12] = 1.0*count/144;
+	vector[16] = 1.0*count/144;
         
 	
 	return 0;
@@ -1481,6 +1527,9 @@ unsigned int getHorizonCrossPoint(unsigned int *data,int left,int right,int heig
 	}
 	
 	return count;
+#endif
+
+
 }
 
 /*垂直线穿过width_pos时0变1和1变0的个数*/

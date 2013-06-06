@@ -7,7 +7,7 @@
 #include "floatfann.h"
 
 #define PI 3.1415926535898
-#define MAX_FEATURE_LEN    (13)
+#define MAX_FEATURE_LEN    (144)
 #define NORM_WIDTH         (12)
 #define NORM_HEIGHT        (12)
 #define MAX_CHAR_WIDTH     (11)
@@ -35,12 +35,36 @@ void PRINT_FEATURE(float *vector, int feature_len);
 int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int top_height, int bot_height, int image_width,int image_height);
 unsigned int IsHorizonLine(unsigned char *data, int left,int right,int image_width,int image_height);
 static unsigned char *ImageNorm(unsigned char *data, unsigned char *norm_data,int width, int height);
+void gettemplate(FILE *fd,int num,int iNum,int oNum);
+void gettemplateInfo(FILE *fd,int *num, int *iNum, int *oNum);
+float getsimvalue(float *vector);
 //unsigned int MedFilter(unsigned char *data,int width, int height);
+int train_template[100][144];
+int train_result[100];
 
 int main(int argc, char * argv[])
 {
     char filename[256];
 	int i =0;
+	
+	int num;
+	int iNum;
+	int oNum;
+	
+	FILE *fp;
+	
+	fp = fopen("./train/new_feature_train.set","r");
+	if (fp == NULL){
+	    printf("can't open new_feature_train.net\n");
+		return 1;
+	}
+	
+	gettemplateInfo(fp,&num,&iNum,&oNum);
+	gettemplate(fp,num,iNum,oNum);
+	
+	printf("num=%d,iNum=%d,oNum=%d\n",num,iNum,oNum);
+	
+	
 	
 	if (argc < 2){
 	    printf("Usage:\n");
@@ -55,6 +79,142 @@ int main(int argc, char * argv[])
 		}
     }
     return 0;
+}
+
+float getsimvalue(float *vector,int num,int iNum,int *result_index)
+{
+    int i,j,k;
+	float maxsim = 0;
+	float sim = 0;
+	
+	int index = 0;
+	
+	float sum1 = 0;
+	float sum2 = 0;
+	float sum3 = 0;
+	
+	
+	for (i=0; i<num; i++){
+	    sum1 = 0;
+		sum2 = 0;
+		sum3 = 0;
+	    for (j=0; j<iNum; j++){
+		    sum1 += train_template[i][j]*train_template[i][j];
+			sum2 += vector[j]*vector[j];
+			sum3 += train_template[i][j]*vector[j];
+		}
+		
+		sim = sum3/(sqrt(sum1)*sqrt(sum2));
+		
+		if (sim > maxsim){
+		    maxsim = sim;
+			index = i;
+		}
+	}
+	
+	//printf("maxsim = %f,index=%d,train_result=%d\n",maxsim,index,train_result[index]);
+	*result_index = index;
+	return maxsim;
+}
+
+void gettemplateInfo(FILE *fd,int *num, int *iNum, int *oNum)
+{
+    char buffer[256] = "";
+	char newbuf[200] = {0};
+	
+	fgets(buffer,256,fd);
+	
+	char *p1 = strstr(buffer," ");
+	strncpy(newbuf,buffer,p1 -buffer);
+	*num = atoi(newbuf);
+	memset(newbuf,0,16);
+	
+	char *p = p1;
+	while(*p == ' '){
+	    p++;
+	}
+	
+	p1 = strstr(p," ");
+	
+	strncpy(newbuf,p,p1-p);
+	strcpy(newbuf,p);
+	*iNum = atoi(newbuf);
+	memset(newbuf,0,16);
+	
+	p = p1;
+	while(*p == ' '){
+	    p++;
+	}
+	strcpy(newbuf,p);
+	*oNum = atoi(newbuf);
+	memset(newbuf,0,16);
+	
+	return;
+}
+
+void gettemplate(FILE *fd,int num,int iNum,int oNum)
+{
+    char buff_f[1024];
+	char buff_n[1024];
+	char buff[256];
+	char *p = NULL;
+	int i = 0;
+	
+	memset(buff_f,0,1024);
+	
+	for (i=0; i<num; i++){
+	    fgets(buff_f,1024,fd); /*feature*/
+		fgets(buff_n,1024,fd); /*number*/
+		
+		p = buff_f;
+		while((p != NULL) && (*p == ' ')){
+		    p++;
+		}
+		
+		int j=0;
+		char *p1;
+		while(p != '\0'){
+		    
+			//printf("%s\n",p1);
+			p1 = strstr(p," ");
+			if (p1 != NULL){
+			    strncpy(buff,p,p1-p);
+				train_template[i][j++] = atoi(buff);
+				
+				p = p1;
+				while(p != '\0' && (*p == ' ') ){
+				    p++;
+				}
+			}
+			else{
+			    p = p1;
+			}
+		}
+		
+		p = buff_n;
+		
+		j=0;
+		while(p != '\0'){
+		    p1 = strstr(p," ");
+			int value;
+			if (p1 != NULL){
+			    strncpy(buff,p,p1-p);
+				value = atoi(buff);
+				train_result[i] = train_result[i]*2 + value;
+				
+				p = p1;
+				while(p != '\0' && (*p == ' ')){
+				    p++;
+				}
+			}
+			else{
+			   value = atoi(p);
+			   train_result[i] = train_result[i]*2 + value;
+			   p = p1;
+			   
+			}
+		}
+	}
 }
 
 unsigned char * recogBMP(char* filename)
@@ -217,6 +377,7 @@ void featureExtract(unsigned char *data,int width, int height)
 {
     int i=0; 
 	int j=0;
+	int k=0;
 	
 	float calc_out[ANN_OUTPUT_NUM];
 	int   calc_iout[ANN_OUTPUT_NUM];
@@ -240,11 +401,43 @@ void featureExtract(unsigned char *data,int width, int height)
 		    float *feature_vector = new float[MAX_FEATURE_LEN];
 		    memset(feature_vector,0,MAX_FEATURE_LEN);
 		    getfeatureVector(norm_data,feature_vector,NORM_WIDTH,NORM_HEIGHT);
+			int index = 0;
+			float maxsim=getsimvalue(feature_vector,10,144,&index);
 		    recogDigital(feature_vector,&calc_out[0]);
 			//printf("calc_out[0]=%0.3f,calc_out[1]=%0.3f,calc_out[2]=%0.3f,calc_out[3]=%0.3f\n",calc_out[0],calc_out[1],calc_out[2],calc_out[3]);
 		    PRINT_NORM(norm_data,NORM_WIDTH,NORM_HEIGHT);
 	        PRINT_FEATURE(feature_vector,MAX_FEATURE_LEN);
 			printf("calc_out[0]=%0.3f,calc_out[1]=%0.3f,calc_out[2]=%0.3f,calc_out[3]=%0.3f\n",calc_out[0],calc_out[1],calc_out[2],calc_out[3]);
+			/*check calc_out*/
+			int flag = 1;
+			for (k=0; k<4; k++){
+			    if (calc_out[k] <= -0.1){
+				    printf("refused\n");
+					flag = 0;
+					break;
+				}
+				else if (calc_out[k] >= 0.1 && calc_out[k] < 0.85){
+				    printf("refused\n");
+					flag = 0;
+					break;
+				}
+			}
+			
+			if (flag == 1){
+			    int recogNUM = 0;
+			    for (k=0; k<4; k++){
+			        if (fabs(calc_out[k]) < 0.1){
+				        recogNUM = 2*recogNUM;
+				    }
+					else{
+					    recogNUM = 2*recogNUM + 1;
+					}
+				}
+				
+				printf("recogNUM=%d\n",recogNUM);
+			}
+			
+			printf("maxsim=%f,index=%d,train_result=%d\n",maxsim,index,train_result[index]);
 		}
 	}
 	
@@ -1354,6 +1547,15 @@ void PRINT_FEATURE(float *vector, int feature_len)
 unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width, int image_height)
 {
     int i,j;
+	
+	for (i=0; i<image_height; i++){
+	    for (j=0; j<image_width; j++){
+		    vector[i*image_width + j] = data[i*image_width + j];
+		}
+	}
+
+#if 0
+    int i,j;
     /*split image into 4*2 blocks*/
 //  _____________
 //  |  7  | 8   |     
@@ -1389,14 +1591,24 @@ unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width
         }
     }
 #if 1
-    /*垂直线穿过1/3,2/3宽度位置时的黑像素个数*/
+    /*垂直线穿过0/3,1/3,2/3,3/3宽度位置时的黑像素个数*/
     count = 0;
+	for (i=0; i<image_height; i++){
+	    if (data[i*image_width] == 1){
+		    count++;
+		}
+	}
+	
+	vector[8] = 1.0*count/12;
+	
+	count = 0;
     for (i=0; i<image_height; i++){
 	    if (data[i*image_width + third_width] == 1){
 		    count ++;
 		}
 	}
-	vector[8] = 1.0*count/12;
+	vector[9] = 1.0*count/12;
+	
 	
 	count = 0;
 	for (i=0; i<image_height; i++){
@@ -1404,18 +1616,34 @@ unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width
 		    count++;
 		}
 	}
-	vector[9] = 1.0*count/12;
+	vector[10] = 1.0*count/12;
 	
+	count = 0;
+	for (i=0; i<image_height; i++){
+	    if (data[i*image_width + 3*third_width] == 1){
+		    count ++;
+		}
+	}
+	vector[11] = 1.0*count/12;
 
 
-    /*水平线穿过图像1/3和2/3高度位置时的黑像素个数*/
+    /*水平线穿过图像0/3,1/3,2/3,3/3高度位置时的黑像素个数*/
+	
+	count = 0;
+	for (i=0; i<image_width; i++){
+	    if (data[0*image_width + i] == 1){
+		    count++;
+		}
+	}
+	vector[12] = 1.0*count/12;
+	
     count = 0;
 	for (i=0; i<image_width; i++){
 	    if (data[third_height*image_width + i] == 1){
 		    count++;
 		}
 	}
-	vector[10] = 1.0*count/12;
+	vector[13] = 1.0*count/12;
 	
 	count = 0;
 	for (i=0; i<image_width; i++){
@@ -1423,7 +1651,15 @@ unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width
 		    count++;
 		}
 	}
-	vector[11] = 1.0*count/12;
+	vector[14] = 1.0*count/12;
+	
+	count = 0;
+	for (i=0; i<image_width; i++){
+	    if (data[3*third_height*image_width + i] == 1){
+		    count++;
+		}
+	}
+	vector[15] = 1.0*count/12;
 #else
     count = 0;
 	
@@ -1468,9 +1704,9 @@ unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width
 			}
 		}
 	}
-	vector[12] = 1.0*count/144;
+	vector[16] = 1.0*count/144;
         
-	
+#endif	
 	return 0;
 }
 

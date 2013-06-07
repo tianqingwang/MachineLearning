@@ -16,7 +16,7 @@
 #define MAX_WINDOW_LEN     (10)
 #define ANN_OUTPUT_NUM     (4)
 
-unsigned char * recogBMP(char* filename);
+void recogBMP(char* filename);
 unsigned int  getImageWidth(unsigned char *data,int width,int height, int *left_pos, int *right_pos);
 unsigned int  getImageHeight(unsigned char *data,int width,int height,int *top_height,int *bot_height);
 unsigned int  getSlicedHeight(unsigned char *data, int left, int right, int image_width, int image_height, int *top_height, int *bot_height);
@@ -56,7 +56,7 @@ int main(int argc, char * argv[])
     return 0;
 }
 
-unsigned char * recogBMP(char* filename)
+void recogBMP(char* filename)
 {
     int i = 0;
     int j = 0;
@@ -119,7 +119,9 @@ unsigned char * recogBMP(char* filename)
     
     fclose(fo);
 #endif
-    return data;
+
+    delete[] data;
+    return;
 }
 
 /*need to add automatic angle adjusting*/

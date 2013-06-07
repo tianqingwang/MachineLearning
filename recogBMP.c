@@ -15,8 +15,22 @@
 #define MIN_WINDOW_LEN     (5)
 #define MAX_WINDOW_LEN     (10)
 #define ANN_OUTPUT_NUM     (4)
+#define MAX_TRAINING_PAIR  (1000)
+#define MAX_TRAINING_ELEM  (200)
 
 #define DEBUG              (1)
+
+
+/*global variable*/
+/*in training file*/
+int train_template[MAX_TRAINING_PAIR][MAX_TRAINING_ELEM];
+int train_value[MAX_TRAINING_PAIR];
+
+int train_totalPair;
+int train_vectorsize;
+int train_valuesize;
+
+
 
 void recogBMP(char* filename);
 unsigned int  getImageWidth(unsigned char *data,int width,int height, int *left_pos, int *right_pos);
@@ -37,7 +51,9 @@ void PRINT_FEATURE(float *vector, int feature_len);
 int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int top_height, int bot_height, int image_width,int image_height);
 unsigned int IsHorizonLine(unsigned char *data, int left,int right,int image_width,int image_height);
 
-//unsigned int MedFilter(unsigned char *data,int width, int height);
+void gettemplate(FILE *fd,int num,int iNum,int oNum);
+void gettemplateInfo(FILE *fd,int *num, int *iNum, int *oNum);
+float getsimvalue(float *vector, int *result_index);
 
 int main(int argc, char * argv[])
 {
@@ -53,6 +69,17 @@ int main(int argc, char * argv[])
 	    for (i=1; i<argc; i++){
             strcpy(filename, argv[i]);
             printf("%s\n",filename);
+			
+			FILE *fp;
+			fp = fopen("./train/new_feature_train.set","r");
+			if (fp == NULL){
+			    printf("can't open new_feature_train.set\n");
+				exit(1);
+			}
+			
+			gettemplateInfo(fp,&train_totalPair,&train_vectorsize,&train_valuesize);
+			gettemplate(fp,train_totalPair,train_vectorsize,train_valuesize);
+			
             recogBMP(filename);
 		}
     }
@@ -108,6 +135,9 @@ void recogBMP(char* filename)
 //    ImageRotation(data,width,height);  /*for italic*/
 //    ImageThinning(data,width,height);
 //    ImageSplit(data,width,height);
+
+      /*here, read the template in training file*/
+	  
       ImageProcessing(data,width,height);
 #if DEBUG
     printf("width    :%d\n",width);
@@ -235,6 +265,144 @@ unsigned int  getImageWidth(unsigned char *data,int width,int height,int *left_p
 	*right_pos = right_border;
 	
     return (*right_pos - *left_pos + 1);
+}
+
+void gettemplateInfo(FILE *fd,int *num, int *iNum, int *oNum)
+{
+    char buffer[256] = "";
+	char newbuf[200] = {0};
+	
+	fgets(buffer,256,fd);
+	
+	char *p1 = strstr(buffer," ");
+	strncpy(newbuf,buffer,p1 -buffer);
+	*num = atoi(newbuf);
+	memset(newbuf,0,16);
+	
+	char *p = p1;
+	while(*p == ' '){
+	    p++;
+	}
+	
+	p1 = strstr(p," ");
+	
+	strncpy(newbuf,p,p1-p);
+	strcpy(newbuf,p);
+	*iNum = atoi(newbuf);
+	memset(newbuf,0,16);
+	
+	p = p1;
+	while(*p == ' '){
+	    p++;
+	}
+	strcpy(newbuf,p);
+	*oNum = atoi(newbuf);
+	memset(newbuf,0,16);
+	
+	return;
+}
+
+
+void gettemplate(FILE *fd,int num,int iNum,int oNum)
+{
+    char buff_f[1024];
+	char buff_n[1024];
+	char buff[256];
+	char *p = NULL;
+	int i = 0;
+	
+	memset(buff_f,0,1024);
+	
+	for (i=0; i<num; i++){
+	    fgets(buff_f,1024,fd); /*feature*/
+		fgets(buff_n,1024,fd); /*number*/
+		
+		p = buff_f;
+		while((p != NULL) && (*p == ' ')){
+		    p++;
+		}
+		
+		int j=0;
+		char *p1;
+		while(p != '\0'){
+		    
+			//printf("%s\n",p1);
+			p1 = strstr(p," ");
+			if (p1 != NULL){
+			    strncpy(buff,p,p1-p);
+				train_template[i][j++] = atoi(buff);
+				
+				p = p1;
+				while(p != '\0' && (*p == ' ') ){
+				    p++;
+				}
+			}
+			else{
+			    p = p1;
+			}
+		}
+		
+		p = buff_n;
+		
+		j=0;
+		while(p != '\0'){
+		    p1 = strstr(p," ");
+			int value;
+			if (p1 != NULL){
+			    strncpy(buff,p,p1-p);
+				value = atoi(buff);
+				train_value[i] = train_value[i]*2 + value;
+				
+				p = p1;
+				while(p != '\0' && (*p == ' ')){
+				    p++;
+				}
+			}
+			else{
+			   value = atoi(p);
+			   train_value[i] = train_value[i]*2 + value;
+			   p = p1;
+			   
+			}
+		}
+	}
+}
+
+
+float getsimvalue(float *vector,int *result_index)
+{
+    int i,j,k;
+	float maxsim = 0;
+	float sim = 0;
+	
+	int index = 0;
+	
+	float sum1 = 0;
+	float sum2 = 0;
+	float sum3 = 0;
+	
+	
+	for (i=0; i<train_totalPair; i++){
+	    sum1 = 0;
+		sum2 = 0;
+		sum3 = 0;
+	    for (j=0; j<train_vectorsize; j++){
+		    sum1 += train_template[i][j]*train_template[i][j];
+			sum2 += vector[j]*vector[j];
+			sum3 += train_template[i][j]*vector[j];
+		}
+		
+		sim = sum3/(sqrt(sum1)*sqrt(sum2));
+		
+		if (sim > maxsim){
+		    maxsim = sim;
+			index = i;
+		}
+	}
+	
+	//printf("maxsim = %f,index=%d,train_result=%d\n",maxsim,index,train_result[index]);
+	*result_index = index;
+	return maxsim;
 }
 
 /*check the symbol "-" in digital string*/
@@ -658,6 +826,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
     int i,j,k;
 	int w,h;
 	int left, right;
+	float calc_out[ANN_OUTPUT_NUM];
 	
 	int l_width = ((width*3 + 3)>>2)<<2;
 	
@@ -717,6 +886,10 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 			
 			getfeatureVector(norm_data,feature_vector,NORM_WIDTH,NORM_HEIGHT);
 			
+			int index;
+			float simvalue = getsimvalue(feature_vector,&index);
+			
+			recogDigital(feature_vector,&calc_out[0]);
 #if DEBUG
             PRINT_NORM(norm_data,NORM_WIDTH,NORM_HEIGHT);
 			PRINT_FEATURE(feature_vector,MAX_FEATURE_LEN);

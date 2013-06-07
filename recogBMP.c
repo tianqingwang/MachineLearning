@@ -13,13 +13,13 @@
 #define NORM_HEIGHT        (12)
 #define MAX_CHAR_WIDTH     (11)
 #define WINDOW_STEP        (3)
-#define MIN_WINDOW_LEN     (5)
+#define MIN_WINDOW_LEN     (4)
 #define MAX_WINDOW_LEN     (10)
 #define ANN_OUTPUT_NUM     (4)
 #define MAX_TRAINING_PAIR  (1000)
 #define MAX_TRAINING_ELEM  (200)
 
-#define DEBUG              (0)
+#define DEBUG              (1)
 
 
 /*global variable*/

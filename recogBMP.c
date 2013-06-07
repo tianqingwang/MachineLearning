@@ -7,7 +7,7 @@
 #include "floatfann.h"
 
 #define PI 3.1415926535898
-#define MAX_FEATURE_LEN    (13)
+#define MAX_FEATURE_LEN    (144)
 #define NORM_WIDTH         (12)
 #define NORM_HEIGHT        (12)
 #define MAX_CHAR_WIDTH     (11)
@@ -875,6 +875,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 			getSlicedHeight(data,left,right,width,height,&sliced_top,&sliced_bot);
 			
 			unsigned char *one_ch = (unsigned char*)malloc(sizeof(unsigned char)*(right-left+1)*(sliced_top-sliced_bot+1));
+			memset(one_ch,0,(right-left+1)*(sliced_top-sliced_bot+1));
 			
 			if (one_ch == NULL){
 			    printf("(%d) allocate memory failed\n",__LINE__);
@@ -882,8 +883,10 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 			}
 			
 			copy_char(data,one_ch,left,right,sliced_top,sliced_bot,width);
+			memset(norm_data,0,NORM_WIDTH*NORM_HEIGHT);
 			ImageNorm(one_ch,norm_data,right-left+1, sliced_top - sliced_bot + 1);
 			
+			memset(feature_vector,0,MAX_FEATURE_LEN);
 			getfeatureVector(norm_data,feature_vector,NORM_WIDTH,NORM_HEIGHT);
 			
 			int index;
@@ -892,6 +895,9 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 			recogDigital(feature_vector,&calc_out[0]);
 #if DEBUG
             PRINT_NORM(norm_data,NORM_WIDTH,NORM_HEIGHT);
+#endif
+
+#if DEBUG
 			PRINT_FEATURE(feature_vector,MAX_FEATURE_LEN);
 #endif
 			
@@ -1526,7 +1532,19 @@ void PRINT_FEATURE(float *vector, int feature_len)
 }
 
 
+unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width, int image_height)
+{
+    int i,j;
+	for (i=0; i<image_height; i++){
+	    for (j=0; j<image_width; j++){
+		    vector[i*image_width + j] = data[i*image_width + j];
+		}
+	}
+	
+	return 0;
+}
 
+#if 0
 unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width, int image_height)
 {
     int i,j;
@@ -1649,6 +1667,7 @@ unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width
 	
 	return 0;
 }
+#endif
 
 /*水平线穿过height_pos时0变1和1变0的个数*/
 unsigned int getHorizonCrossPoint(unsigned int *data,int left,int right,int height_pos,int image_width)

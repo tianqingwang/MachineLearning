@@ -4,6 +4,7 @@
 #include <memory.h>
 #include <math.h>
 #include <string.h>
+#include <ctype.h>
 #include "floatfann.h"
 
 #define PI 3.1415926535898
@@ -18,7 +19,7 @@
 #define MAX_TRAINING_PAIR  (1000)
 #define MAX_TRAINING_ELEM  (200)
 
-#define DEBUG              (1)
+#define DEBUG              (0)
 
 
 /*global variable*/
@@ -359,8 +360,10 @@ void gettemplate(FILE *fd,int num,int iNum,int oNum)
 				}
 			}
 			else{
-			   value = atoi(p);
-			   train_value[i] = train_value[i]*2 + value;
+			   if (isdigit(*p)){
+			       value = atoi(p);
+			       train_value[i] = train_value[i]*2 + value;
+			   }
 			   p = p1;
 			   
 			}
@@ -533,9 +536,11 @@ unsigned int  getSlicedWidth(unsigned char *data, int left, int right, int image
 	*right_pos = right;
 	
 	int l_width = ((image_width*3 + 3)>>2)<<2;
-	
+
+#if DEBUG	
 	printf("left=%d,right=%d\n",left,right);
-	
+#endif	
+
 	for (i=left; i<=right; i++){
 	    for (j=0; j<image_height; j++){
 		    k = j*l_width + i*3;
@@ -821,6 +826,33 @@ void ImageNorm(unsigned char *data,unsigned char *norm_data,int width, int heigh
     }
 }
 
+
+static int checkANNOutput(float *ann_output){
+    int retvalue = 0;
+	int i = 0;
+	
+	for (i=0; i<ANN_OUTPUT_NUM; i++){
+	    if (ann_output[i] < -0.2){
+		    retvalue = -1;
+			break;
+		}
+		
+		if (ann_output[i] >= 0.25 && ann_output[i] <= 0.75){
+		    retvalue = -1;
+			break;
+		}
+		
+		if (fabs(ann_output[i]) <= 0.25){
+		    retvalue = retvalue*2;
+		}
+		else{
+		    retvalue = retvalue*2 + 1;
+		}
+	}
+	
+	return retvalue;
+}
+
 unsigned int ImageProcessing(unsigned char *data, int width, int height)
 {
     int i,j,k;
@@ -873,7 +905,9 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 			}
 			
 			getSlicedHeight(data,left,right,width,height,&sliced_top,&sliced_bot);
-			
+#if DEBUG
+			printf("left=%d,right=%d\n",left,right);
+#endif
 			unsigned char *one_ch = (unsigned char*)malloc(sizeof(unsigned char)*(right-left+1)*(sliced_top-sliced_bot+1));
 			memset(one_ch,0,(right-left+1)*(sliced_top-sliced_bot+1));
 			
@@ -893,6 +927,15 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 			float simvalue = getsimvalue(feature_vector,&index);
 			
 			recogDigital(feature_vector,&calc_out[0]);
+			
+#if DEBUG
+            printf("index=%d,simvalue=%0.3f,recog=%d\n",index,simvalue,train_value[index]);
+#endif
+			
+#if DEBUG
+            printf("%0.3f %0.3f %0.3f %0.3f\n",calc_out[0],calc_out[1],calc_out[2],calc_out[3]);
+#endif
+			
 #if DEBUG
             PRINT_NORM(norm_data,NORM_WIDTH,NORM_HEIGHT);
 #endif
@@ -900,21 +943,46 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 #if DEBUG
 			PRINT_FEATURE(feature_vector,MAX_FEATURE_LEN);
 #endif
+
+/*judge the output*/
+			if (simvalue >= 0.80){
+			    /*check NN output*/
+				int ann_value = checkANNOutput(calc_out);
+#if DEBUG
+				printf("ann_value=%d\n",ann_value);
+#endif
+				if (ann_value >= 0){
+				    if (ann_value == train_value[index]){
+					    /*trust output*/
+#if DEBUG
+						printf("recogNUM=%d\n",ann_value);
+#else
+                        printf("%d",ann_value);
+#endif
+						break;
+					}
+				}
+			}
 			
 			free(one_ch);
 			
 			j--;
 		}
-		
-		left = left + j + 1; /*move left to new position*/
-		
+		if (j < MIN_WINDOW_LEN){
+		    left++;
+		}else{
+		    left = left + j; /*move left to new position*/
+		}
 	}
 	
 	
 	free(norm_data);
 	free(feature_vector);
 	
+	printf("\n");
 }
+
+
 
 
 #if 0
@@ -1526,7 +1594,7 @@ void PRINT_FEATURE(float *vector, int feature_len)
 {
     int i = 0;
 	for (i=0; i<feature_len; i++){
-	    printf("%0.3f ",vector[i]);
+	    printf("%d ",(int)vector[i]);
 	}
 	printf("\n");
 }

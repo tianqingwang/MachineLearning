@@ -153,7 +153,7 @@ static struct {
 int    verbose;
 int    showComment;
 
-static void ReadGIF ( FILE	 *fd, int imageNumber );
+void ReadGIF ( FILE	 *fd, int imageNumber );
 static int ReadColorMap ( FILE *fd, int number, RGBQUAD *b);
 static int DoExtension ( FILE *fd, int label );
 static int GetDataBlock ( FILE *fd, unsigned char  *buf );

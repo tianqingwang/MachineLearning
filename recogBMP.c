@@ -16,13 +16,16 @@
 #define MAX_WINDOW_LEN     (10)
 #define ANN_OUTPUT_NUM     (4)
 
+#define DEBUG              (1)
+
 void recogBMP(char* filename);
 unsigned int  getImageWidth(unsigned char *data,int width,int height, int *left_pos, int *right_pos);
 unsigned int  getImageHeight(unsigned char *data,int width,int height,int *top_height,int *bot_height);
 unsigned int  getSlicedHeight(unsigned char *data, int left, int right, int image_width, int image_height, int *top_height, int *bot_height);
 unsigned int  getSlicedWidth(unsigned char *data, int left, int right, int image_width, int image_height, int *left_pos, int *right_pos);
 unsigned int ImageRotation(unsigned char *data, int width, int height);
-unsigned int ImageSplit(unsigned char *data, int width, int height);
+//unsigned int ImageSplit(unsigned char *data, int width, int height);
+unsigned int ImageProcessing(unsigned char *data, int width, int height);
 unsigned int ImageThinning(unsigned char *data, int width, int height);
 unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width, int image_height);
 unsigned int recogDigital(float *vector,float *calc_out);
@@ -102,13 +105,11 @@ void recogBMP(char* filename)
     }
 
 
-//    ImageRotation(data,width,height);
-#if 1
+//    ImageRotation(data,width,height);  /*for italic*/
 //    ImageThinning(data,width,height);
-    ImageSplit(data,width,height);
-#endif
-#if 1
-    /*for test only*/
+//    ImageSplit(data,width,height);
+      ImageProcessing(data,width,height);
+#if DEBUG
     printf("width    :%d\n",width);
     printf("height   :%d\n",height);
 
@@ -634,14 +635,10 @@ static int RoughSplit(unsigned char *data,int *pos,int width,int height)
     return 0;
 }
 
-static unsigned char *ImageNorm(unsigned char *data,int width, int height)
+void ImageNorm(unsigned char *data,unsigned char *norm_data,int width, int height)
 {
     int i,j;
     int new_x, new_y;
-
-    /*normalize the data to NORM_WIDTH X NORM_HEIGHT*/
-    unsigned char *norm_data  = new unsigned char[NORM_WIDTH*NORM_HEIGHT];
-    memset(norm_data,0,NORM_WIDTH*NORM_HEIGHT);
 
     for ( i = 0; i<width; i++) {
         for (j=0; j<height; j++) {
@@ -654,11 +651,94 @@ static unsigned char *ImageNorm(unsigned char *data,int width, int height)
             }
         }
     }
-
-
-    return norm_data;
 }
 
+unsigned int ImageProcessing(unsigned char *data, int width, int height)
+{
+    int i,j,k;
+	int w,h;
+	int left, right;
+	
+	int l_width = ((width*3 + 3)>>2)<<2;
+	
+	int sliced_top, sliced_bot;
+	
+	int pixel_num = 0;
+	
+	left = right = 0;
+	
+	unsigned char *norm_data = (unsigned char*)malloc(sizeof(unsigned char)*NORM_WIDTH*NORM_HEIGHT);
+	
+	if (norm_data == NULL){
+	    printf("(%d) allocate memory failed\n",__LINE__);
+		exit(1);
+	}
+	
+	float *feature_vector = (float*)malloc(sizeof(float)*MAX_FEATURE_LEN);
+	if (feature_vector == NULL){
+	    printf("(%d) allocate memory failed\n",__LINE__);
+		exit(1);
+	}
+	
+	while(left < width){
+	    pixel_num = 0;
+		
+		for (i=0; i<height; i++){
+		    k = i*l_width + left*3;
+			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
+			    pixel_num ++;
+			}
+		}
+		
+		if (pixel_num <= 1){
+		    left++;
+			continue;
+		}
+		
+		j = MAX_WINDOW_LEN;
+		while(j>=MIN_WINDOW_LEN){
+		    right = left + j;
+			if (right >= width){
+			    right = width - 1;
+				j = right - left;
+			}
+			
+			getSlicedHeight(data,left,right,width,height,&sliced_top,&sliced_bot);
+			
+			unsigned char *one_ch = (unsigned char*)malloc(sizeof(unsigned char)*(right-left+1)*(sliced_top-sliced_bot+1));
+			
+			if (one_ch == NULL){
+			    printf("(%d) allocate memory failed\n",__LINE__);
+				exit(1);
+			}
+			
+			copy_char(data,one_ch,left,right,sliced_top,sliced_bot,width);
+			ImageNorm(one_ch,norm_data,right-left+1, sliced_top - sliced_bot + 1);
+			
+			getfeatureVector(norm_data,feature_vector,NORM_WIDTH,NORM_HEIGHT);
+			
+#if DEBUG
+            PRINT_NORM(norm_data,NORM_WIDTH,NORM_HEIGHT);
+			PRINT_FEATURE(feature_vector,MAX_FEATURE_LEN);
+#endif
+			
+			free(one_ch);
+			
+			j--;
+		}
+		
+		left = left + j + 1; /*move left to new position*/
+		
+	}
+	
+	
+	free(norm_data);
+	free(feature_vector);
+	
+}
+
+
+#if 0
 unsigned int ImageSplit(unsigned char *data,int width, int height){
     int i,j,k;
 	int w,h;
@@ -1098,6 +1178,7 @@ unsigned int ImageSplit(unsigned char *data,int width, int height){
 	}
 	printf("\n");
 }
+#endif
 
 int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int top_height, int bot_height, int image_width, int image_height)
 {
@@ -1125,7 +1206,7 @@ int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int 
     copy_char(data,sliced,sliced_left,sliced_right,top_pos,bot_pos,image_width);
 	unsigned char *norm_data = new unsigned char[NORM_WIDTH*NORM_HEIGHT];
 //	norm_data = ImageNorm(sliced,sliced_right - sliced_left + 1,top_height - bot_height + 1);
-    norm_data = ImageNorm(sliced,sliced_right - sliced_left + 1, top_pos - bot_pos + 1);
+    ImageNorm(sliced,norm_data,sliced_right - sliced_left + 1, top_pos - bot_pos + 1);
 //	ImageThinning(norm_data,NORM_WIDTH,NORM_HEIGHT);
 	delete[] sliced;
 	

@@ -17,6 +17,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <math.h>
+#include "gif.h"
 typedef unsigned char byte;
 typedef unsigned short WORD;
 typedef unsigned long DWORD;
@@ -153,7 +154,7 @@ static struct {
 int    verbose;
 int    showComment;
 
-static void ReadGIF ( FILE	 *fd, int imageNumber );
+//static void ReadGIF ( FILE	 *fd, int imageNumber );
 static int ReadColorMap ( FILE *fd, int number, RGBQUAD *b);
 static int DoExtension ( FILE *fd, int label );
 static int GetDataBlock ( FILE *fd, unsigned char  *buf );
@@ -213,7 +214,8 @@ int main(int argc, char **argv){
 	fclose(fp);
 	return 0;
 }
-static void ReadGIF(FILE *fd, int imageNumber){
+
+void ReadGIF(FILE *fd, int imageNumber){
 	unsigned char buf[16];
 	unsigned char c;
 	static RGBQUAD localColorMap[MAXCOLORMAPSIZE];

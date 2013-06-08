@@ -19,7 +19,7 @@
 #define MAX_TRAINING_PAIR  (1000)
 #define MAX_TRAINING_ELEM  (200)
 
-#define DEBUG              (0)
+#define DEBUG              (1)
 
 
 /*global variable*/
@@ -51,6 +51,7 @@ void PRINT_NORM(unsigned char *norm_data,int width, int height);
 void PRINT_FEATURE(float *vector, int feature_len);
 int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int top_height, int bot_height, int image_width,int image_height);
 unsigned int IsHorizonLine(unsigned char *data, int left,int right,int image_width,int image_height);
+int IsItalic(unsigned char *data, int width, int height);
 
 void gettemplate(FILE *fd,int num,int iNum,int oNum);
 void gettemplateInfo(FILE *fd,int *num, int *iNum, int *oNum);
@@ -131,11 +132,17 @@ void recogBMP(char* filename)
             }
         }
     }
-
-
-//    ImageRotation(data,width,height);  /*for italic*/
+    
+	if (IsItalic(data,width,height) == 1){
+	    printf("Italic\n");
+        ImageRotation(data,width,height);  /*for italic*/
+    }
+	else{
+	    printf("not Italic\n");
+	}
 	  
       ImageProcessing(data,width,height);
+
 #if DEBUG
     printf("width    :%d\n",width);
     printf("height   :%d\n",height);
@@ -402,6 +409,34 @@ float getsimvalue(float *vector,int *result_index)
 	//printf("maxsim = %f,index=%d,train_result=%d\n",maxsim,index,train_result[index]);
 	*result_index = index;
 	return maxsim;
+}
+
+/*Is Italic font*/
+int IsItalic(unsigned char *data, int width, int height)
+{
+    int i,j,k;
+	int x1,x2;
+	int l_width = ((width*3 + 3)>>2)<<2;
+    /*get the first x pos at the y=8*/
+	for (i=0; i<width; i++){
+	    k=8*l_width + 3*i;
+		if (data[k] == 0 && data[k+1]==0 && data[k+2]==0){
+		    x1 = i;
+			break;
+		}
+	}
+	
+	/*get the first x pos at the y=14*/
+	for (i=0; i<width; i++){
+	    k=14*l_width + 3*i;
+		if (data[k] == 0 && data[k+1]==0 && data[k+2] == 0){
+		    x2 = i;
+			break;
+		}
+	}
+	
+	
+	return (x1==x2)?0:1;
 }
 
 /*check the symbol "-" in digital string*/
@@ -979,7 +1014,12 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 		if (j < MIN_WINDOW_LEN){
 		    left++;
 		}else{
-		    left = left + j -1; /*move left to new position*/
+		    if (recogResult[iResult-1] == 7){
+			    left = left + j - 3;
+			}
+			else{
+		        left = left + j -1; /*move left to new position*/
+			}
 		}
 	}
 	

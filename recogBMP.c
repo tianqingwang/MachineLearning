@@ -134,12 +134,8 @@ void recogBMP(char* filename)
     }
     
 	if (IsItalic(data,width,height) == 1){
-	    printf("Italic\n");
         ImageRotation(data,width,height);  /*for italic*/
     }
-	else{
-	    printf("not Italic\n");
-	}
 	  
       ImageProcessing(data,width,height);
 
@@ -963,7 +959,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 			int index;
 			float simvalue = getsimvalue(feature_vector,&index);
 			
-			recogDigital(feature_vector,&calc_out[0]);
+//			recogDigital(feature_vector,&calc_out[0]);
 			
 #if DEBUG
             printf("index=%d,simvalue=%0.3f,recog=%d\n",index,simvalue,train_value[index]);
@@ -989,6 +985,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
                 recogResult[iResult++] = train_value[index];
                 break;
 			}
+#if 0
 			if (simvalue >= 0.80){
 			    /*check NN output*/
 				int ann_value = checkANNOutput(calc_out);
@@ -1006,6 +1003,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 					}
 				}
 			}
+#endif
 			
 			free(one_ch);
 			

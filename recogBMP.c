@@ -67,19 +67,19 @@ int main(int argc, char * argv[])
 		exit(0);
 	}
 	else{
+	    FILE *fp;
+		fp = fopen("./train/new_feature_train.set","r");
+		if (fp == NULL){
+		    printf("can't open new_feature_train.set\n");
+			exit(1);
+			}
+	    gettemplateInfo(fp,&train_totalPair,&train_vectorsize,&train_valuesize);
+	    gettemplate(fp,train_totalPair,train_vectorsize,train_valuesize);
 	    for (i=1; i<argc; i++){
             strcpy(filename, argv[i]);
             printf("%s\n",filename);
 			
-			FILE *fp;
-			fp = fopen("./train/new_feature_train.set","r");
-			if (fp == NULL){
-			    printf("can't open new_feature_train.set\n");
-				exit(1);
-			}
 			
-			gettemplateInfo(fp,&train_totalPair,&train_vectorsize,&train_valuesize);
-			gettemplate(fp,train_totalPair,train_vectorsize,train_valuesize);
 			
             recogBMP(filename);
 		}
@@ -859,6 +859,8 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 	int w,h;
 	int left, right;
 	float calc_out[ANN_OUTPUT_NUM];
+	int recogResult[13] = {0};
+	int iResult = 0;
 	
 	int l_width = ((width*3 + 3)>>2)<<2;
 	
@@ -867,6 +869,10 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 	int pixel_num = 0;
 	
 	left = right = 0;
+	
+	for (i=0; i<13; i++){
+	    recogResult[i] = 0;
+	}
 	
 	unsigned char *norm_data = (unsigned char*)malloc(sizeof(unsigned char)*NORM_WIDTH*NORM_HEIGHT);
 	
@@ -945,6 +951,13 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 #endif
 
 /*judge the output*/
+            if (simvalue >= 0.88){
+#if DEBUG
+                printf("recogNUM=%d\n",train_value[index]);
+#endif
+                recogResult[iResult++] = train_value[index];
+                break;
+			}
 			if (simvalue >= 0.80){
 			    /*check NN output*/
 				int ann_value = checkANNOutput(calc_out);
@@ -956,9 +969,8 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 					    /*trust output*/
 #if DEBUG
 						printf("recogNUM=%d\n",ann_value);
-#else
-                        printf("%d",ann_value);
 #endif
+                        recogResult[iResult++] = train_value[index];
 						break;
 					}
 				}
@@ -971,13 +983,19 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 		if (j < MIN_WINDOW_LEN){
 		    left++;
 		}else{
-		    left = left + j; /*move left to new position*/
+		    left = left + j -1; /*move left to new position*/
 		}
 	}
 	
 	
 	free(norm_data);
 	free(feature_vector);
+	
+	/*output the recognized result*/
+	int m = 0;
+	for (m=0; m<iResult; m++){
+	    printf("%d",recogResult[m]);
+	}
 	
 	printf("\n");
 }

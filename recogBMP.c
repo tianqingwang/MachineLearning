@@ -18,6 +18,7 @@
 #define ANN_OUTPUT_NUM     (4)
 #define MAX_TRAINING_PAIR  (1000)
 #define MAX_TRAINING_ELEM  (200)
+#define MIN_SIM            (0.84)
 
 #define DEBUG              (1)
 
@@ -995,7 +996,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
                 break;
 			}
 #else
-            if (simvalue >= 0.85){
+            if (simvalue >= MIN_SIM){
 			    if (maxsim[bias+2] < simvalue){
 				    maxsim[bias+2] = simvalue;
 					window_len[bias+2] = j;

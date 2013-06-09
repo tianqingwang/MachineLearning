@@ -929,29 +929,37 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 			continue;
 		}
 		
+		int bias;
+		
+		float maxsim[5] = {0};
+		int window_len[5] = {MAX_WINDOW_LEN};
+		int vIndex[5] = {-1};
+		
+		for (bias = -2; bias <=2; bias ++){
+		
 		j = MAX_WINDOW_LEN;
 		while(j>=MIN_WINDOW_LEN){
-		    right = left + j;
+		    right = left + bias + j;
 			if (right >= width){
 			    right = width - 1;
-				j = right - left;
+				j = right - (left + bias);
 			}
 			
-			getSlicedHeight(data,left,right,width,height,&sliced_top,&sliced_bot);
+			getSlicedHeight(data,left+bias,right,width,height,&sliced_top,&sliced_bot);
 #if DEBUG
-			printf("left=%d,right=%d\n",left,right);
+			printf("left=%d,right=%d\n",left+bias,right);
 #endif
-			unsigned char *one_ch = (unsigned char*)malloc(sizeof(unsigned char)*(right-left+1)*(sliced_top-sliced_bot+1));
-			memset(one_ch,0,(right-left+1)*(sliced_top-sliced_bot+1));
+			unsigned char *one_ch = (unsigned char*)malloc(sizeof(unsigned char)*(right-(left+bias)+1)*(sliced_top-sliced_bot+1));
+			memset(one_ch,0,(right-(left+bias)+1)*(sliced_top-sliced_bot+1));
 			
 			if (one_ch == NULL){
 			    printf("(%d) allocate memory failed\n",__LINE__);
 				exit(1);
 			}
 			
-			copy_char(data,one_ch,left,right,sliced_top,sliced_bot,width);
+			copy_char(data,one_ch,left+bias,right,sliced_top,sliced_bot,width);
 			memset(norm_data,0,NORM_WIDTH*NORM_HEIGHT);
-			ImageNorm(one_ch,norm_data,right-left+1, sliced_top - sliced_bot + 1);
+			ImageNorm(one_ch,norm_data,right-(left+bias)+1, sliced_top - sliced_bot + 1);
 			
 			memset(feature_vector,0,MAX_FEATURE_LEN);
 			getfeatureVector(norm_data,feature_vector,NORM_WIDTH,NORM_HEIGHT);
@@ -978,6 +986,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 #endif
 
 /*judge the output*/
+#if 0
             if (simvalue >= 0.88){
 #if DEBUG
                 printf("recogNUM=%d\n",train_value[index]);
@@ -985,6 +994,17 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
                 recogResult[iResult++] = train_value[index];
                 break;
 			}
+#else
+            if (simvalue >= 0.88){
+			    if (maxsim[bias+2] < simvalue){
+				    maxsim[bias+2] = simvalue;
+					window_len[bias+2] = j;
+					vIndex[bias+2] = index;
+				}
+			}
+#endif
+
+
 #if 0
 			if (simvalue >= 0.80){
 			    /*check NN output*/
@@ -1009,6 +1029,11 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 			
 			j--;
 		}
+#if DEBUG
+		printf("maxsim[%d]=%0.3f\n",bias+2,maxsim[bias+2]);
+#endif
+	    }
+#if 0
 		if (j < MIN_WINDOW_LEN){
 		    left++;
 		}else{
@@ -1019,6 +1044,41 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 		        left = left + j -1; /*move left to new position*/
 			}
 		}
+#else
+
+        int n=0; 
+		int allzero = 1;
+		for (n=0; n<5; n++){
+		    if (maxsim[n] != 0){
+			    allzero = 0;
+				break;
+			}
+		}
+		
+		if (allzero == 1){
+		    left = left + 2;
+		}
+		else{
+		    int maxindex = 0;
+		    for (n=0; n<5; n++){
+			    if (maxsim[n] > maxsim[maxindex]){
+				    maxindex = n;
+				}
+			}
+			
+			
+
+#if DEBUG
+            printf("maxindex=%d\n",maxindex);
+            printf("recogNUM=%d\n",train_value[vIndex[maxindex]]);
+#endif
+			
+			recogResult[iResult++] = train_value[vIndex[maxindex]];
+			left = left + maxindex -2 + window_len[maxindex];
+			
+		}
+#endif
+
 	}
 	
 	

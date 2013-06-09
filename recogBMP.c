@@ -995,7 +995,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
                 break;
 			}
 #else
-            if (simvalue >= 0.88){
+            if (simvalue >= 0.85){
 			    if (maxsim[bias+2] < simvalue){
 				    maxsim[bias+2] = simvalue;
 					window_len[bias+2] = j;
@@ -1056,7 +1056,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 		}
 		
 		if (allzero == 1){
-		    left = left + 2;
+		    left = left + 3;
 		}
 		else{
 		    int maxindex = 0;

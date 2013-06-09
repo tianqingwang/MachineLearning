@@ -154,13 +154,15 @@ static struct {
 int    verbose;
 int    showComment;
 
+static unsigned char *image_data;
+
 //static void ReadGIF ( FILE	 *fd, int imageNumber );
 static int ReadColorMap ( FILE *fd, int number, RGBQUAD *b);
 static int DoExtension ( FILE *fd, int label );
 static int GetDataBlock ( FILE *fd, unsigned char  *buf );
 static int GetCode ( FILE *fd, int code_size, int flag );
 static int LWZReadByte ( FILE *fd, int flag, int input_code_size );
-static void ReadImage ( FILE *fd, int len, int height, RGBQUAD *cmap, int gray, int interlace, int ignore );
+static void ReadImage ( FILE *fd, unsigned char *image_data,int len, int height, RGBQUAD *cmap, int gray, int interlace, int ignore );
 
 char *note[]= {
 	"Usage: oldfile.gif newfile.bmp",
@@ -177,10 +179,11 @@ int main(int argc, char **argv){
 	char *cp;
 	char *srcname= 0;
 	char *dstname= 0;
-
+	
 	imageNumber = 1;
 	verbose = FALSE;
 	showComment = FALSE;
+	
 
 	while(cp= *++argv)if(*cp++=='-')switch(*cp++){
 	case '8':	bit8= 1; break;
@@ -210,13 +213,28 @@ int main(int argc, char **argv){
 		exit(1);
 	}
 	int width, height;
-	ReadGIF(in, &width,&height,imageNumber);
+	ReadGIF(in,&width,&height,imageNumber);
+	/*print*/
+	int i,j;
+	for (i=0; i<height; i++){
+	    for (j=0; j<width; j++){
+		    if (data[i*width + j] == 0){
+			    printf("  ");
+			}
+			else{
+			    printf("%d ",data[i*width+j]);
+			}
+		}
+		printf("\n");
+	}
+	
+	
 	fclose(in);
 	fclose(fp);
 	return 0;
 }
 
-void ReadGIF(FILE *fd,int *width, int *height,int imageNumber){
+unsigned char * ReadGIF(FILE *fd,int *width, int *height,int imageNumber){
 	unsigned char buf[16];
 	unsigned char c;
 	static RGBQUAD localColorMap[MAXCOLORMAPSIZE];
@@ -296,22 +314,25 @@ void ReadGIF(FILE *fd,int *width, int *height,int imageNumber){
 		
 		*width = LM_to_uint(buf[4],buf[5]);
 		*height = LM_to_uint(buf[6],buf[7]);
+		
+		image_data = (unsigned char*)malloc((*width)*(*height)*sizeof(unsigned char));
 
 		if (! useGlobalColormap) {
 			if (ReadColorMap(fd, bitPixel, localColorMap))
 				pm_error("error reading local colormap" );
-			ReadImage(fd, LM_to_uint(buf[4],buf[5]),
+			ReadImage(fd, image_data,LM_to_uint(buf[4],buf[5]),
 				LM_to_uint(buf[6],buf[7]),
 				localColorMap, bitPixel,
 				buf[8]&INTERLACE, imageCount != imageNumber);
 		} else {
-			ReadImage(fd, LM_to_uint(buf[4],buf[5]),
+			ReadImage(fd, image_data,LM_to_uint(buf[4],buf[5]),
 				LM_to_uint(buf[6],buf[7]),
 				GifScreen.ColorMap, GifScreen.BitPixel,
 				buf[8]&INTERLACE, imageCount != imageNumber);
 		}
-
 	}
+	
+	return image_data;
 }
 
 static int ReadColorMap(FILE *fd, int number, RGBQUAD *buffer){
@@ -567,14 +588,12 @@ static int LWZReadByte(FILE *fd, int flag, int input_code_size){
 	}
 	return code;
 }
-static void ReadImage(FILE *fd, int len, int height, RGBQUAD *cmap,
+static void ReadImage(FILE *fd, unsigned char *image_data,int len, int height, RGBQUAD *cmap,
  int bpp, int interlace, int ignore){
 	unsigned char	c;
 	int		v;
 	int		xpos = 0, ypos = 0, pass = 0;
 	unsigned char *scanline;
-	
-	unsigned char *image_data=(unsigned char*)malloc(len*height);
 
 	/*
 	**  Initialize the Compression routines
@@ -657,7 +676,7 @@ static void ReadImage(FILE *fd, int len, int height, RGBQUAD *cmap,
 	if(LWZReadByte(fd, FALSE,c) >= 0)
 		fprintf(stderr,"too much input data, ignoring extra...\n");
 		
-		
+#if 0		
     int i=0,j=0;
 	for (i=0; i<height; i++){
 	    for (j=0; j<len; j++){
@@ -670,6 +689,7 @@ static void ReadImage(FILE *fd, int len, int height, RGBQUAD *cmap,
 		}
 		printf("\n");
 	}
+#endif
 }
 /* +-------------------------------------------------------------------+ */
 /* | Copyright 1990, 1991, 1993, David Koblas.  (koblas@netcom.com)    | */

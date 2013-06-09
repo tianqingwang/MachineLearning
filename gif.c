@@ -625,20 +625,23 @@ static void ReadImage(FILE *fd, int len, int height, RGBQUAD *cmap,
 			break;
 		case 8:
 			scanline[xpos]= v;
-//			printf("v=%d,R=%d,G=%d,B=%d\n",v,cmap[v].rgbRed,cmap[v].rgbGreen,cmap[v].rgbBlue);
-			int gray=(int)(cmap[v].rgbRed*30+cmap[v].rgbGreen*59+cmap[v].rgbBlue*11 + 50)/100;
-			if (gray >= 230){
-			    image_data[ypos*len+xpos] = 0;
-			}
-			else{
-			    image_data[ypos*len+xpos] = 1;
-			}
+			
 			break;
 		}
 		++xpos;
 		if (xpos == len) {
 			fseek(fp, -(ypos+1)*wib, SEEK_END);
 			fwrite(scanline, 1, (int)wib, fp);
+			int i;
+			for (i=0; i<len; i++){
+			    int gray = (int)(cmap[scanline[i]].rgbRed*30+cmap[scanline[i]].rgbGreen*59 + cmap[scanline[i]].rgbBlue*11 + 50)/100;
+				if (gray >= 230){
+				    image_data[ypos*len+i] = 0;
+				}
+				else{
+				    image_data[ypos*len+i] = 1;
+				}
+			}
 			xpos = 0;
 			if (interlace) {
 				static int dpass[]= {8,8,4,2};

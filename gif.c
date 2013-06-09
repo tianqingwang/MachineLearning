@@ -209,13 +209,14 @@ int main(int argc, char **argv){
 		perror(dstname);
 		exit(1);
 	}
-	ReadGIF(in, imageNumber);
+	int width, height;
+	ReadGIF(in, &width,&height,imageNumber);
 	fclose(in);
 	fclose(fp);
 	return 0;
 }
 
-void ReadGIF(FILE *fd, int imageNumber){
+void ReadGIF(FILE *fd,int *width, int *height,int imageNumber){
 	unsigned char buf[16];
 	unsigned char c;
 	static RGBQUAD localColorMap[MAXCOLORMAPSIZE];
@@ -292,6 +293,9 @@ void ReadGIF(FILE *fd, int imageNumber){
 		useGlobalColormap = ! (buf[8] & LOCALCOLORMAP);
 
 		bitPixel = 1<<((buf[8]&0x07)+1);
+		
+		*width = LM_to_uint(buf[4],buf[5]);
+		*height = LM_to_uint(buf[6],buf[7]);
 
 		if (! useGlobalColormap) {
 			if (ReadColorMap(fd, bitPixel, localColorMap))
@@ -681,3 +685,4 @@ static void ReadImage(FILE *fd, int len, int height, RGBQUAD *cmap,
 ** documentation.  This software is provided "as is" without express or
 ** implied warranty.
 */
+

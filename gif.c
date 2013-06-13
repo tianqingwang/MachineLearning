@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 	int width,height;
 	
 	ReadGIFInfo(in,&width,&height);
-	printf("width=%d,height=%d\n",width,height);
+
 	unsigned char *data = (unsigned char*)malloc(width*height*sizeof(unsigned char));
 	ReadGIFData(in,data,width,height);
 }
@@ -429,8 +429,6 @@ static void ReadImage(FILE *fd,unsigned char *data,int len, int height, RGBQUAD 
    int xpos = 0, ypos=0, pass=0;
    unsigned char *scanline;
    
-   printf("interlace=%d\n",interlace);
-   
    if (!ReadOK(fd,&c,1)){
        pm_error("EOF / read error on image data");
    }
@@ -535,7 +533,6 @@ void ReadGIFData(FILE *fd,unsigned char *data, int width, int height)
 	}
 	
 	wib = dib_wib(bitCount,width);
-	printf("globalcolormap=%d\n",useGlobalColormap);
 	
 	if (!useGlobalColormap){
 	    if (ReadColorMap(fd,bitPixel,localColorMap)){

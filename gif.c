@@ -63,7 +63,7 @@ void pm_error(char *msg){
 	fprintf(stderr, "%s\n", msg);
 	exit(5);
 }
-
+#if 0
 int main(int argc, char **argv)
 {
     char *srcname = 0;
@@ -82,7 +82,32 @@ int main(int argc, char **argv)
 
 	unsigned char *data = (unsigned char*)malloc(width*height*sizeof(unsigned char));
 	ReadGIFData(in,data,width,height);
+	
+	int i,j;
+	for (i=0; i<height; i++){
+	    for (j=0; j<width; j++){
+		    if (data[i*width + j] == 0){
+			    printf("  ");
+			}
+			else {
+			    printf("1 ");
+			}
+		}
+		printf("\n");
+	}
+	
+	printf("line=8\n");
+	for (j=0; j<width; j++){
+	     if (data[8*width + j] == 0){
+		     printf("  ");
+		 }
+		 else{
+		     printf("1 ");
+		 }
+	}
+	printf("\n");
 }
+#endif
 
 static int dib_wib(int bitcount, int wi){
 	switch (bitcount){
@@ -122,7 +147,7 @@ static int DoExtension(FILE *fd, int label){
 
 	switch (label) {
 	case 0x01:		/* Plain Text Extension */
-		str = "Plain Text Extension";
+		strcpy(str,"Plain Text Extension");
 #ifdef notdef
 		if (GetDataBlock(fd, (unsigned char*) buf) == 0)
 			;
@@ -149,7 +174,7 @@ static int DoExtension(FILE *fd, int label){
 		break;
 #endif
 	case 0xff:		/* Application Extension */
-		str = "Application Extension";
+		strcpy(str,"Application Extension");
 		GetDataBlock(fd, (unsigned char*) buf);
 #if 0
 		if (showComment){
@@ -161,7 +186,7 @@ static int DoExtension(FILE *fd, int label){
 #endif
 		break;
 	case 0xfe:		/* Comment Extension */
-		str = "Comment Extension";
+		strcpy(str,"Comment Extension");
 		while (GetDataBlock(fd, (unsigned char*) buf) != 0) {
 #if 0
 	    	if (showComment)
@@ -170,7 +195,7 @@ static int DoExtension(FILE *fd, int label){
 		}
 		return FALSE;
 	case 0xf9:		/* Graphic Control Extension */
-		str = "Graphic Control Extension";
+		strcpy(str,"Graphic Control Extension");
 		(void) GetDataBlock(fd, (unsigned char*) buf);
 		Gif89.disposal    = (buf[0] >> 2) & 0x7;
 		Gif89.inputFlag   = (buf[0] >> 1) & 0x1;
@@ -200,6 +225,8 @@ static int GetCode(FILE *fd, int code_size, int flag){
 	static int		curbit, lastbit, done, last_byte;
 	int			i, j, ret;
 	unsigned char		count;
+	
+	char *str;
 
 	if (flag) {
 		curbit = 0;
@@ -211,7 +238,8 @@ static int GetCode(FILE *fd, int code_size, int flag){
 	if ( (curbit+code_size) >= lastbit) {
 		if (done) {
 			if (curbit >= lastbit)
-				pm_error("ran off the end of my bits" );
+			    strcpy(str,"ran off the end of my bits");
+				pm_error(str);
 			return -1;
 		}
 		buf[0] = buf[last_byte-2];
@@ -244,6 +272,8 @@ static int LWZReadByte(FILE *fd, int flag, int input_code_size){
 	static int	table[2][(1<< MAX_LWZ_BITS)];
 	static int	stack[(1<<(MAX_LWZ_BITS))*2], *sp;
 	register int	i;
+	
+	char *str;
 
 	if (flag) {
 		set_code_size = input_code_size;
@@ -318,8 +348,10 @@ static int LWZReadByte(FILE *fd, int flag, int input_code_size){
 
 		while (code >= clear_code) {
 			*sp++ = table[1][code];
-			if (code == table[0][code])
-				pm_error("circular table entry BIG ERROR");
+			if (code == table[0][code]){
+			    strcpy(str,"circular table entry BIG ERROR");
+				pm_error(str);
+			}
 			code = table[0][code];
 		}
 
@@ -347,9 +379,12 @@ static int LWZReadByte(FILE *fd, int flag, int input_code_size){
 static int ReadColorMap(FILE *fd, int number, RGBQUAD *buffer){
 	int i;
 	unsigned char rgb[3];
+	char *str;
 	for (i = 0; i < number; ++i, buffer++) {
-		if (! ReadOK(fd, rgb, sizeof(rgb)))
-			pm_error("bad colormap" );
+		if (! ReadOK(fd, rgb, sizeof(rgb))){
+			strcpy(str,"bad colormap");
+			pm_error(str);
+		}
 		buffer->rgbRed= rgb[0];
 		buffer->rgbGreen= rgb[1];
 		buffer->rgbBlue= rgb[2];
@@ -363,25 +398,30 @@ void ReadGIFInfo(FILE *fd,int *width,int *height)
     unsigned char buf[16];
 	unsigned char c;
 	char version[4];
+	char *str;
 	
 	if (!ReadOK(fd,buf,6)){
-	    pm_error("error reading magic number");
+	    strcpy(str,"error reading magic number");
+	    pm_error(str);
 	}
 	
 	if (strncmp((char*)buf,"GIF",3) != 0){
-	    pm_error("not a GIF file");
+	    strcpy(str,"not a GIF file");
+	    pm_error(str);
 	}
 	
 	strncpy(version,(char*)buf+3,3);
 	version[3] = '\0';
 	
 	if ((strcmp(version,"87a") != 0) && (strcmp(version,"89a") != 0)){
-	    pm_error("bad version number, not '87a' or '89a'");
+	    strcpy(str,"bad version number, not '87a' or '89a'");
+	    pm_error(str);
 	}
 	
 	/*read logical screen*/
 	if (!ReadOK(fd,buf,7)){
-	    pm_error("failed to read screen descriptor");
+	    strcpy(str,"failed to read screen descriptor");
+	    pm_error(str);
 	}
 	
 	GifScreen.Width 	  = LM_to_uint(buf[0],buf[1]);
@@ -393,12 +433,14 @@ void ReadGIFInfo(FILE *fd,int *width,int *height)
 	
 	if (BitSet(buf[4],LOCALCOLORMAP)){
 	    if (ReadColorMap(fd,GifScreen.BitPixel,GifScreen.ColorMap)){
-		    pm_error("error reading global color map");
+		    strcpy(str,"error reading global color map");
+		    pm_error(str);
 		}
 	}
 	
 	if (!ReadOK(fd,&c,1)){
-	    pm_error("EOF / read error on image data");
+	    strcpy(str,"EOF / read error on image data");
+	    pm_error(str);
 	}
 	
 	if (c == ';'){/*0x3B, GIF terminator*/
@@ -407,13 +449,15 @@ void ReadGIFInfo(FILE *fd,int *width,int *height)
 	
 	if (c == '!'){/*0x21, Extension*/
 	    if (!ReadOK(fd,&c,1)){
-		    pm_error("OF / read error on extension function code");
+		    strcpy(str,"OF / read error on extension function code");
+		    pm_error(str);
 		}
 		DoExtension(fd,c);
 	}
 	
 	if (!ReadOK(fd,buf,8)){
-	    pm_error("couldn't read left/top/width/height");
+	    strcpy(str,"couldn't read left/top/width/height");
+	    pm_error(str);
 	}
 	
 	*width = LM_to_uint(buf[4],buf[5]);
@@ -428,17 +472,21 @@ static void ReadImage(FILE *fd,unsigned char *data,int len, int height, RGBQUAD 
    int v;
    int xpos = 0, ypos=0, pass=0;
    unsigned char *scanline;
+   char *str;
    
    if (!ReadOK(fd,&c,1)){
-       pm_error("EOF / read error on image data");
+       strcpy(str,"EOF / read error on image data");
+       pm_error(str);
    }
    
    if (LWZReadByte(fd,TRUE,c)<0){
-       pm_error("error reading image");
+       strcpy(str,"error reading image");
+       pm_error(str);
    }
    
    if((scanline = (unsigned char*)malloc(len)) == NULL){
-       pm_error("couldn't allocate space for image");
+       strcpy(str,"couldn't allocate space for image");
+       pm_error(str);
    }
    
    while(ypos < height && (v = LWZReadByte(fd,FALSE,c)) >= 0){
@@ -492,7 +540,7 @@ static void ReadImage(FILE *fd,unsigned char *data,int len, int height, RGBQUAD 
 		   }
 	   }
    }
-   
+#if 0
    int i,j;
    for (i=0; i<height; i++){
        for (j=0; j<len; j++){
@@ -505,6 +553,7 @@ static void ReadImage(FILE *fd,unsigned char *data,int len, int height, RGBQUAD 
 	   }
 	   printf("\n");
    }
+#endif
 }
 
 void ReadGIFData(FILE *fd,unsigned char *data, int width, int height)
@@ -513,10 +562,11 @@ void ReadGIFData(FILE *fd,unsigned char *data, int width, int height)
 	static RGBQUAD localColorMap[MAXCOLORMAPSIZE];
 	int useGlobalColormap;
 	int bitPixel;
-	
+	char *str;
 	
 	if (!ReadOK(fd,buf,1)){
-	    pm_error("couldn't read local flag");
+	    strcpy(str,"couldn't read local flag");
+	    pm_error(str);
 	}
 	
 	useGlobalColormap = !(buf[0] & LOCALCOLORMAP);
@@ -536,7 +586,8 @@ void ReadGIFData(FILE *fd,unsigned char *data, int width, int height)
 	
 	if (!useGlobalColormap){
 	    if (ReadColorMap(fd,bitPixel,localColorMap)){
-		    pm_error("error reading local colormap");
+		    strcpy(str,"error reading local colormap");
+		    pm_error(str);
 		}
 		ReadImage(fd,data,width,height,localColorMap,bitPixel,buf[0]&INTERLACE);
 	}

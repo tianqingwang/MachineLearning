@@ -1,9 +1,9 @@
 CC=g++
 
-SRC=recogBMP.c
+SRC=recogBMP.c gif.c
 FEATURE_SRC=featureExtract.c
 
-TARGET=recbmp
+TARGET=recdigit
 FEATURETARGET=fExtract
 INCLUDEDIR=-I./fann
 LDFLAG=-L./fann

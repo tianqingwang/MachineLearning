@@ -6,6 +6,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "floatfann.h"
+#include "gif.h"
 
 #define PI 3.1415926535898
 #define MAX_FEATURE_LEN    (144)
@@ -65,7 +66,7 @@ int main(int argc, char * argv[])
 	
 	if (argc < 2){
 	    printf("Usage:\n");
-		printf(" ./bmp file_to_recog\n");
+		printf(" ./recdigit file_to_recog\n");
 		exit(0);
 	}
 	else{
@@ -99,6 +100,7 @@ void recogBMP(char* filename)
 
     /*read image head information*/
     FILE *f = fopen(filename,"rb");
+#if 0
     unsigned char info[54];
     fread(info, sizeof(unsigned char), 54, f); // read the 54-byte header
 
@@ -133,13 +135,20 @@ void recogBMP(char* filename)
             }
         }
     }
+#endif
+
+    int width, height;
+    ReadGIFInfo(f,&width,&height);
+    unsigned char *data=(unsigned char*)malloc(width*height*sizeof(unsigned char));
+    ReadGIFData(f,data,width,height);    
     
 	if (IsItalic(data,width,height) == 1){
+	    printf("italic\n");
         ImageRotation(data,width,height);  /*for italic*/
     }
 	  
       ImageProcessing(data,width,height);
-
+#if 0
 #if DEBUG
     printf("width    :%d\n",width);
     printf("height   :%d\n",height);
@@ -151,7 +160,7 @@ void recogBMP(char* filename)
     
     fclose(fo);
 #endif
-
+#endif
     delete[] data;
     return;
 }
@@ -167,11 +176,9 @@ unsigned int ImageRotation(unsigned char *data, int width, int height)
 
     int new_x, new_y;
 
-    int l_width = ((width*3 + 3)>>2)<<2;
+    unsigned char *rot_data =  (unsigned char*)malloc(width*height*sizeof(unsigned char));
 
-    unsigned char *rot_data = new unsigned char[3*l_width*height];
-
-    memset(rot_data,255,3*l_width*height);
+    memset(rot_data,0,width*height);
 
 //	for (angle = 0; angle <= 30; angle ++){
     /*for test*/
@@ -180,17 +187,14 @@ unsigned int ImageRotation(unsigned char *data, int width, int height)
     for (i = 0; i < height; i++) {
         for (j = 0; j<width; j++) {
             double arc_angle = angle*PI/180.0;
-            k = i*l_width + j*3;
-            if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0) {
+            
+            if (data[i*width+j] == 1) {
                 int new_x = (int)(j-i*tan(arc_angle));
                 int new_y = i;
 				new_x += 5;
                 if (new_x >=0 && new_x < width) {
-                    int new_k = new_y*l_width + new_x*3;
-					
-                    rot_data[new_k] = data[k];
-                    rot_data[new_k+1] = data[k+1];
-                    rot_data[new_k+2] = data[k+2];
+                    int new_k = new_y*width + new_x;
+                    rot_data[new_k] = 1;
                 }
             }
 
@@ -199,16 +203,14 @@ unsigned int ImageRotation(unsigned char *data, int width, int height)
 
     for (i=0; i<height; i++) {
         for (j=0; j<width; j++) {
-            k = i*l_width + j*3;
+            k=i*width+j;
             data[k] = rot_data[k];
-            data[k+1] = rot_data[k+1];
-            data[k+2] = rot_data[k+2];
         }
     }
 //	}
 
 
-    delete[] rot_data;
+    free(rot_data);
     return 0;
 }
 
@@ -413,20 +415,19 @@ int IsItalic(unsigned char *data, int width, int height)
 {
     int i,j,k;
 	int x1,x2;
-	int l_width = ((width*3 + 3)>>2)<<2;
     /*get the first x pos at the y=8*/
+
 	for (i=0; i<width; i++){
-	    k=8*l_width + 3*i;
-		if (data[k] == 0 && data[k+1]==0 && data[k+2]==0){
-		    x1 = i;
+		if (data[14*width + i] == 1){
+		    x1=i;
 			break;
 		}
 	}
 	
 	/*get the first x pos at the y=14*/
+
 	for (i=0; i<width; i++){
-	    k=14*l_width + 3*i;
-		if (data[k] == 0 && data[k+1]==0 && data[k+2] == 0){
+	    if (data[18*width+i] == 1){
 		    x2 = i;
 			break;
 		}
@@ -535,8 +536,12 @@ unsigned int  getSlicedHeight(unsigned char *data, int left, int right, int imag
 
 	for (i=0; i<image_height; i++){
 	    for (j=left; j<=right; j++){
-		    k = i*l_width + 3*j;
-			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
+//		    k = i*l_width + 3*j;
+//			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
+//			    *top_height = i;
+//				break;
+//			}
+            if (data[i*image_width + j] == 1){
 			    *top_height = i;
 				break;
 			}
@@ -545,8 +550,12 @@ unsigned int  getSlicedHeight(unsigned char *data, int left, int right, int imag
 	
 	for (i=image_height-1; i>=0; i--){
 	    for (j=left; j<=right; j++){
-		    k = i*l_width + 3*j;
-			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
+//		    k = i*l_width + 3*j;
+//			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
+//			    *bot_height = i;
+//				break;
+//			}
+            if(data[i*image_width + j] == 1){
 			    *bot_height = i;
 				break;
 			}
@@ -890,7 +899,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 	int recogResult[13] = {0};
 	int iResult = 0;
 	
-	int l_width = ((width*3 + 3)>>2)<<2;
+//	int l_width = ((width*3 + 3)>>2)<<2;
 	
 	int sliced_top, sliced_bot;
 	
@@ -919,8 +928,11 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 	    pixel_num = 0;
 		
 		for (i=0; i<height; i++){
-		    k = i*l_width + left*3;
-			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
+//		    k = i*l_width + left*3;
+//			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
+//			    pixel_num ++;
+//			}
+            if (data[i*width + left] == 1){
 			    pixel_num ++;
 			}
 		}
@@ -949,6 +961,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 			getSlicedHeight(data,left+bias,right,width,height,&sliced_top,&sliced_bot);
 #if DEBUG
 			printf("left=%d,right=%d\n",left+bias,right);
+			printf("sliced_top=%d,sliced_bot=%d\n",sliced_top,sliced_bot);
 #endif
 			unsigned char *one_ch = (unsigned char*)malloc(sizeof(unsigned char)*(right-(left+bias)+1)*(sliced_top-sliced_bot+1));
 			memset(one_ch,0,(right-(left+bias)+1)*(sliced_top-sliced_bot+1));
@@ -1207,13 +1220,14 @@ void copy_char(unsigned char *src,unsigned char *dest, int left,int right, int t
 {
     int i,j,k;
 	
-	int l_width = ((image_width*3 + 3)>>2)<<2;
+//	int l_width = ((image_width*3 + 3)>>2)<<2;
 	int new_width = right - left + 1;
 	
 	for (i=bot; i<=top; i++){
 	    for (j=left; j<=right; j++){
-		    k = i*l_width + j*3;
-			if (src[k] == 0 && src[k+1] == 0 && src[k+2] == 0){
+//		    k = i*l_width + j*3;
+//			if (src[k] == 0 && src[k+1] == 0 && src[k+2] == 0){
+            if (src[i*image_width + j] == 1){
 			    dest[(i-bot)*new_width + j-left] = 1;
 			}
 			else{
@@ -1226,7 +1240,7 @@ void copy_char(unsigned char *src,unsigned char *dest, int left,int right, int t
 void PRINT_NORM(unsigned char *norm_data,int width, int height)
 {
     int k,j;
-    for (k=height-1; k>=0; k--) {
+    for (k=0; k<height; k++) {
         for (j=0; j<width; j++) {
             if (norm_data[k*width + j] == 0) {
                 printf("  ");

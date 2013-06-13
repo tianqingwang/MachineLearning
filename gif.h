@@ -1,6 +1,7 @@
 #ifndef __GIF_H__
 #define __GIF_H__
 
-unsigned char* ReadGIF(FILE *fd,int *width, int *height,int imageNumber);
+void ReadGIFInfo(FILE *fd,int *width,int *height);
+void ReadGIFData(FILE *fd,unsigned char *data, int width, int height);
 
 #endif

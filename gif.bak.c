@@ -55,7 +55,11 @@ static struct {
        int     disposal;
 } Gif89 = { -1, -1, -1, 0 };
 
+long wib;
+int bitCount;
+
 void ReadGIFInfo(FILE *fd,int *width,int *height);
+void ReadGIFData(FILE *fd,unsigned char *data, int width, int height);
 
 void pm_error(char *msg){
 	fprintf(stderr, "%s\n", msg);
@@ -80,6 +84,18 @@ int main(int argc, char **argv)
 	printf("width=%d,height=%d\n",width,height);
 	unsigned char *data = (unsigned char*)malloc(width*height*sizeof(unsigned char));
 	ReadGIFData(in,data,width,height);
+}
+
+static int dib_wib(int bitcount, int wi){
+	switch (bitcount){
+	case 1: wi= (wi+31) >> 3; break;
+	case 4: wi= (wi+7)  >> 1; break;
+	case 8: wi=  wi+3; break;
+	case 16:wi= (wi*2)+3; break;
+	case 24:wi= (wi*3)+3; break;
+	case 32:return wi*4;
+	}
+	return wi & ~3;
 }
 
 int    ZeroDataBlock = FALSE;
@@ -398,7 +414,7 @@ void ReadGIFInfo(FILE *fd,int *width,int *height)
 		DoExtension(fd,c);
 	}
 	
-	if (!ReadOK(fd,buf,9)){
+	if (!ReadOK(fd,buf,8)){
 	    pm_error("couldn't read left/top/width/height");
 	}
 	
@@ -408,7 +424,130 @@ void ReadGIFInfo(FILE *fd,int *width,int *height)
 	return;
 }
 
+static void ReadImage(FILE *fd,unsigned char *data,int len, int height, RGBQUAD *cmap, int bpp, int interlace)
+{
+   unsigned char c;
+   int v;
+   int xpos = 0, ypos=0, pass=0;
+   unsigned char *scanline;
+   
+   printf("interlace=%d\n",interlace);
+   
+   if (!ReadOK(fd,&c,1)){
+       pm_error("EOF / read error on image data");
+   }
+   
+   if (LWZReadByte(fd,TRUE,c)<0){
+       pm_error("error reading image");
+   }
+   
+   if((scanline = (unsigned char*)malloc(len)) == NULL){
+       pm_error("couldn't allocate space for image");
+   }
+   
+   while(ypos < height && (v = LWZReadByte(fd,FALSE,c)) >= 0){
+       switch(bitCount){
+	       case 1:
+		       if (v){
+			       scanline[xpos>>3] |= 128 >> (xpos&7);
+			   }
+			   else{
+			       scanline[xpos>>3] &= 0xff7f >> (xpos&7);
+			   }
+			   break;
+		   case 4:
+		       if (xpos&1){
+			       scanline[xpos>>1] |= v&15;
+			   }
+			   else{
+			       scanline[xpos>>1] = (v&15) << 4;
+			   }
+			   break;
+		   case 8:
+		       scanline[xpos] = v;
+			   break;
+	   }
+	   
+	   ++xpos;
+	   
+	   if (xpos == len){
+	       int i=0; 
+		   for (i=0; i<len; i++){
+		       int gray = (int)(cmap[scanline[i]].rgbRed*30 + cmap[scanline[i]].rgbGreen*59+cmap[scanline[i]].rgbBlue*11 + 50)/100;
+		       if (gray >= 230){
+			       data[ypos*len+i] = 0;
+			   }
+			   else{
+			       data[ypos*len+i] = 1;
+			   }
+		   }
+	   
+	       xpos = 0;
+		   if (interlace){
+		       static int dpass[] = {8,8,4,2};
+			   ypos += dpass[pass];
+			   if (ypos >= height){
+			       static int restart[] = {0,4,2,1,32767};
+				   ypos = restart[++pass];
+			   }
+		   }
+		   else{
+		       ++ypos;
+		   }
+	   }
+   }
+   
+   int i,j;
+   for (i=0; i<height; i++){
+       for (j=0; j<len; j++){
+	       if (data[i*len + j]==0){
+		       printf("  ");
+		   }
+		   else{
+		       printf("1 ");
+		   }
+	   }
+	   printf("\n");
+   }
+}
+
 void ReadGIFData(FILE *fd,unsigned char *data, int width, int height)
 {
-    
+    unsigned char buf[16];
+	static RGBQUAD localColorMap[MAXCOLORMAPSIZE];
+	int useGlobalColormap;
+	int bitPixel;
+	
+	
+	if (!ReadOK(fd,buf,1)){
+	    pm_error("couldn't read local flag");
+	}
+	
+	useGlobalColormap = !(buf[0] & LOCALCOLORMAP);
+	bitPixel = 1<<((buf[0]&0x07)+1);
+	
+	if (bitPixel > 16){
+	    bitCount = 8;
+	}
+	else if (bitPixel > 2){
+	    bitCount = 4;
+	}
+	else{
+	    bitCount = 1;
+	}
+	
+	wib = dib_wib(bitCount,width);
+	printf("globalcolormap=%d\n",useGlobalColormap);
+	
+	if (!useGlobalColormap){
+	    if (ReadColorMap(fd,bitPixel,localColorMap)){
+		    pm_error("error reading local colormap");
+		}
+		ReadImage(fd,data,width,height,localColorMap,bitPixel,buf[0]&INTERLACE);
+	}
+	else{
+	    
+	    ReadImage(fd,data,width,height,GifScreen.ColorMap,GifScreen.BitPixel,buf[0]&INTERLACE);
+	}
+	
 }

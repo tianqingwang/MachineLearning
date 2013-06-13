@@ -182,7 +182,7 @@ unsigned int ImageRotation(unsigned char *data, int width, int height)
 
 //	for (angle = 0; angle <= 30; angle ++){
     /*for test*/
-    angle = 12;
+    angle = -12;
     /*end test*/
     for (i = 0; i < height; i++) {
         for (j = 0; j<width; j++) {

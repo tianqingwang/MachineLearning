@@ -9,9 +9,9 @@
 #include "gif.h"
 
 #define PI 3.1415926535898
-#define MAX_FEATURE_LEN    (144)
+#define MAX_FEATURE_LEN    (192)
 #define NORM_WIDTH         (12)
-#define NORM_HEIGHT        (12)
+#define NORM_HEIGHT        (16)
 #define MAX_CHAR_WIDTH     (11)
 #define WINDOW_STEP        (3)
 #define MIN_WINDOW_LEN     (4)
@@ -71,7 +71,8 @@ int main(int argc, char * argv[])
 	}
 	else{
 	    FILE *fp;
-		fp = fopen("./train/new_feature_train.set","r");
+//		fp = fopen("./train/new_feature_train.set","r");
+		fp = fopen("feature.tpl","r");
 		if (fp == NULL){
 		    printf("can't open new_feature_train.set\n");
 			exit(1);

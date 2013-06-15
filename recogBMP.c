@@ -5,7 +5,7 @@
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
-#include "floatfann.h"
+//#include "floatfann.h"
 #include "gif.h"
 
 #define PI 3.1415926535898
@@ -1108,7 +1108,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 	
 	printf("\n");
 }
-
+#if 0
 int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int top_height, int bot_height, int image_width, int image_height)
 {
     int i;
@@ -1216,6 +1216,7 @@ void set_verticalbar_red(unsigned char *data, int width, int height, int leftpos
 	}
 	
 }
+#endif
 
 void copy_char(unsigned char *src,unsigned char *dest, int left,int right, int top, int bot, int image_width)
 {
@@ -1307,7 +1308,7 @@ unsigned int getVerticalCrossPoint(unsigned int *data,int width_pos,int image_wi
 	return count;
 }
 
-
+#if 0
 unsigned int recogDigital(float *vector, float *fout)
 {
     fann_type *calc_out;
@@ -1331,3 +1332,4 @@ unsigned int recogDigital(float *vector, float *fout)
 	
 	return 0;
 }
+#endif

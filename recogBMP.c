@@ -12,7 +12,7 @@
 #define NORM_WIDTH         (12)
 #define NORM_HEIGHT        (16)
 #define MIN_WINDOW_LEN     (4)
-#define MAX_WINDOW_LEN     (10)
+#define MAX_WINDOW_LEN     (11)
 #define MAX_TRAINING_PAIR  (1000)
 #define MAX_TRAINING_ELEM  (200)
 #define MIN_SIM            (0.81)

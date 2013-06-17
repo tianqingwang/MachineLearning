@@ -71,7 +71,6 @@ int main(int argc, char * argv[])
 	}
 	else{
 	    FILE *fp;
-//		fp = fopen("./train/new_feature_train.set","r");
 		fp = fopen("feature.tpl","r");
 		if (fp == NULL){
 		    printf("can't open new_feature_train.set\n");
@@ -101,42 +100,7 @@ void recogBMP(char* filename)
 
     /*read image head information*/
     FILE *f = fopen(filename,"rb");
-#if 0
-    unsigned char info[54];
-    fread(info, sizeof(unsigned char), 54, f); // read the 54-byte header
 
-    int width = *(int*)&info[18];
-    int height = *(int*)&info[22];
-
-    /*read image data*/
-    int l_width = ((width*3 + 3)>>2)<<2; /*alignment*/
-    int size =l_width*height;
-
-    unsigned char* data = new unsigned char[size];
-    fread(data,sizeof(unsigned char),size,f);
-    fclose(f);
-
-    /*gray picture*/
-    for (i=0; i<height; i++) {
-        for (j=0; j<width; j++) {
-            k = i*l_width+ j*3;
-            unsigned char tmp = data[k];
-            data[k] = data[k+2];
-            data[k+2] = tmp;
-
-            int gray = (int)(((int)data[k])*30 + ((int)data[k+1])*59 + ((int)data[k+2])*11 + 50)/100;
-            if (gray >= 230) {/*white color*/
-                data[k] = 255;
-                data[k+1] = 255;
-                data[k+2] = 255;
-            } else { /*black color*/
-                data[k] = 0;
-                data[k+1] = 0;
-                data[k+2] = 0;
-            }
-        }
-    }
-#endif
 
     int width, height;
     ReadGIFInfo(f,&width,&height);
@@ -148,19 +112,7 @@ void recogBMP(char* filename)
     }
 	  
       ImageProcessing(data,width,height);
-#if 0
-#if DEBUG
-    printf("width    :%d\n",width);
-    printf("height   :%d\n",height);
 
-    FILE *fo = fopen("b.bmp","wb");
-
-    fwrite(info,sizeof(unsigned char),54,fo);
-    fwrite(data,sizeof(unsigned char),size,fo);
-    
-    fclose(fo);
-#endif
-#endif
     delete[] data;
     return;
 }
@@ -234,14 +186,7 @@ unsigned int  getImageWidth(unsigned char *data,int width,int height,int *left_p
             }
         }
     }
-#if 0
-    /*draw vertical*/
-    for (j = 0; j<height; j++) {
-        data[j*l_width + (left_border*3)] = 0;
-        data[j*l_width + (left_border*3) + 1] = 0;
-        data[j*l_width + (left_border*3) + 2] = 255;
-    }
-#endif
+
     printf("left_border:%d\n",left_border);
     /*scan from right to left*/
     for (i=width; i>=0; i--) {
@@ -254,14 +199,7 @@ unsigned int  getImageWidth(unsigned char *data,int width,int height,int *left_p
         }
     }
 
-#if 0
-    /*draw vertical*/
-    for (j = 0; j<height; j++) {
-        data[j*l_width + (right_border*3)] = 0;
-        data[j*l_width + (right_border*3) + 1] = 255;
-        data[j*l_width + (right_border*3) + 2] = 0;
-    }
-#endif
+
     printf("right_border:%d\n",right_border);
 
 	*left_pos = left_border;
@@ -495,14 +433,7 @@ unsigned int getImageHeight(unsigned char *data,int width,int height,int *top_he
     }
 
     printf("top_border:%d\n",top_border);
-#if 0
-    /*draw horizon*/
-    for (i=0; i<width; i++) {
-        data[top_border*l_width + i*3] = 200;
-        data[top_border*l_width + i*3 + 1] = 155;
-        data[top_border*l_width + i*3 + 2] = 0;
-    }
-#endif
+
     /*scan from top to bottom*/
     for (i=height-1; i>=0; i--) {
         for (j=0; j<width; j++) {
@@ -515,14 +446,7 @@ unsigned int getImageHeight(unsigned char *data,int width,int height,int *top_he
     }
 
     printf("bottom_border:%d\n",bottom_border);
-#if 0
-    /*draw horizon*/
-    for (i=0; i<width; i++) {
-        data[bottom_border*l_width + i*3] = 200;
-        data[bottom_border*l_width + i*3 + 1] = 155;
-        data[bottom_border*l_width + i*3 + 2] = 0;
-    }
-#endif	
+
 	*top_height = top_border;
 	*bot_height = bottom_border;
 
@@ -536,11 +460,6 @@ unsigned int  getSlicedHeight(unsigned char *data, int left, int right, int imag
 
 	for (i=0; i<image_height; i++){
 	    for (j=left; j<=right; j++){
-//		    k = i*l_width + 3*j;
-//			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
-//			    *top_height = i;
-//				break;
-//			}
             if (data[i*image_width + j] == 1){
 			    *top_height = i;
 				break;
@@ -550,11 +469,6 @@ unsigned int  getSlicedHeight(unsigned char *data, int left, int right, int imag
 	
 	for (i=image_height-1; i>=0; i--){
 	    for (j=left; j<=right; j++){
-//		    k = i*l_width + 3*j;
-//			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
-//			    *bot_height = i;
-//				break;
-//			}
             if(data[i*image_width + j] == 1){
 			    *bot_height = i;
 				break;
@@ -640,143 +554,6 @@ static int DetectConnectivity(unsigned char *list)
     return count;
 }
 
-unsigned int ImageThinning(unsigned char *data, int width, int height)
-{
-    static int erasetable[256]={   
-                                0,0,1,1,0,0,1,1,   
-                                1,1,0,1,1,1,0,1,   
-                                1,1,0,0,1,1,1,1,   
-                                0,0,0,0,0,0,0,1,   
-                                   
-                                0,0,1,1,0,0,1,1,   
-                                1,1,0,1,1,1,0,1,   
-                                1,1,0,0,1,1,1,1,   
-                                0,0,0,0,0,0,0,1,   
-                                   
-                                1,1,0,0,1,1,0,0,   
-                                0,0,0,0,0,0,0,0,   
-                                0,0,0,0,0,0,0,0,   
-                                0,0,0,0,0,0,0,0,   
-                                   
-                                1,1,0,0,1,1,0,0,   
-                                1,1,0,1,1,1,0,1,   
-                                0,0,0,0,0,0,0,0,   
-                                0,0,0,0,0,0,0,0,   
-   
-                                0,0,1,1,0,0,1,1,   
-                                1,1,0,1,1,1,0,1,   
-                                1,1,0,0,1,1,1,1,   
-                                0,0,0,0,0,0,0,1,   
-                                   
-                                0,0,1,1,0,0,1,1,   
-                                1,1,0,1,1,1,0,1,   
-                                1,1,0,0,1,1,1,1,   
-                                0,0,0,0,0,0,0,0,   
-                                   
-                                1,1,0,0,1,1,0,0,   
-                                0,0,0,0,0,0,0,0,   
-                                1,1,0,0,1,1,1,1,   
-                                0,0,0,0,0,0,0,0,   
-   
-                                1,1,0,0,1,1,0,0,   
-                                1,1,0,1,1,1,0,0,   
-                                1,1,0,0,1,1,1,0,   
-                                1,1,0,0,1,0,0,0   
-                          };  
-    
-	
-	
-	
-    unsigned char n,e,s,w,ne,se,nw,sw;
-	int l_width = ((width*3 + 3)>>2)<<2;
-    short Finished = 0;
-	int x,y;
-	int k ;
-	
-	unsigned char *thinning_data = new unsigned char[width*height];
-	int i,j;
-	
-	for (i=0; i<height; i++){
-	    for(j=0; j<width; j++){
-		    if (data[i*width + j] == 1){
-			    thinning_data[i*width+j] = 0;
-			}
-			else{
-			    thinning_data[i*width+j] = 255;
-			}
-		}
-	}
-	
-    while(!Finished){
-        Finished = 1;
-		for (y=1; y<height-1; y++){
-		    x = 1;
-			while(x < width - 1){
-			    k=y*width + x;
-				if (thinning_data[k] == 0 ){
-				    w = thinning_data[k-1];
-					e = thinning_data[k+1];
-					if (w == 255 || e == 255){
-					    nw = thinning_data[k+width -1];
-						n  = thinning_data[k+width];
-						ne = thinning_data[k+width+1];
-						sw = thinning_data[k-width -1];
-						s  = thinning_data[k-width];
-						se = thinning_data[k+width+1];
-						int num = nw/255 + n/255*2 + ne/255*4 + w/255*8+e/255*16+sw/255*32+s/255*64+se/255*128;
-						if (erasetable[num] == 1){
-						    thinning_data[k] = 255;
-							Finished = 0;
-							x++;
-						}
-					}
-				}
-				x++;
-			}
-		}
-		
-		for (x=1; x < width-1; x++){
-		    y=1;
-			while(y < height -1){
-			    k=y*width+x;
-				if (thinning_data[k] == 0){
-				    n = thinning_data[k+width];
-					s = thinning_data[k-width];
-					if (n==255 || s==255){
-					    nw = thinning_data[k+width -1];
-						ne = thinning_data[k+width + 1];
-						w  = thinning_data[k-1];
-						e  = thinning_data[k+1];
-						sw = thinning_data[k-width-1];
-						se = thinning_data[k-width+1];
-						int num=nw/255+n/255*2+ne/255*4+w/255*8+e/255*16+sw/255*32+s/255*64+se/255*128; 
-						if(erasetable[num] == 1){
-						    thinning_data[k] = 255;
-							Finished = 0;
-							y++;
-						}
-					}
-				}
-				y++;
-			}
-		}
-	}
-
-    for (i=0; i<height; i++){
-        for (j=0; j<width; j++){
-		    k=i*width+j;
-			if (thinning_data[k] == 255){
-			    data[k] = 0;
-			}
-			else{
-			    data[k] = 1;
-			}
-		}
-	}	
-	
-	delete[] thinning_data;
-}
-
 static int RoughSplit(unsigned char *data,int *pos,int width,int height)
 {
     int i,j,k;
@@ -835,13 +612,6 @@ static int RoughSplit(unsigned char *data,int *pos,int width,int height)
     }
 #endif
 
-#if 0
-    printf("");
-    for (i=0; i<width; i++){
-        printf("pos[%d]=%d ",i,pos[i]);
-	}
-	printf("\n");
-#endif
     return 0;
 }
 
@@ -928,10 +698,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 	    pixel_num = 0;
 		
 		for (i=0; i<height; i++){
-//		    k = i*l_width + left*3;
-//			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
-//			    pixel_num ++;
-//			}
+
             if (data[i*width + left] == 1){
 			    pixel_num ++;
 			}
@@ -1000,15 +767,6 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 #endif
 
 /*judge the output*/
-#if 0
-            if (simvalue >= 0.88){
-#if DEBUG
-                printf("recogNUM=%d\n",train_value[index]);
-#endif
-                recogResult[iResult++] = train_value[index];
-                break;
-			}
-#else
             if (simvalue >= MIN_SIM){
 			    if (maxsim[bias+2] < simvalue){
 				    maxsim[bias+2] = simvalue;
@@ -1016,28 +774,6 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 					vIndex[bias+2] = index;
 				}
 			}
-#endif
-
-
-#if 0
-			if (simvalue >= 0.80){
-			    /*check NN output*/
-				int ann_value = checkANNOutput(calc_out);
-#if DEBUG
-				printf("ann_value=%d\n",ann_value);
-#endif
-				if (ann_value >= 0){
-				    if (ann_value == train_value[index]){
-					    /*trust output*/
-#if DEBUG
-						printf("recogNUM=%d\n",ann_value);
-#endif
-                        recogResult[iResult++] = train_value[index];
-						break;
-					}
-				}
-			}
-#endif
 			
 			free(one_ch);
 			
@@ -1047,18 +783,6 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 		printf("maxsim[%d]=%0.3f\n",bias+2,maxsim[bias+2]);
 #endif
 	    }
-#if 0
-		if (j < MIN_WINDOW_LEN){
-		    left++;
-		}else{
-		    if (recogResult[iResult-1] == 7){
-			    left = left + j - 3;
-			}
-			else{
-		        left = left + j -1; /*move left to new position*/
-			}
-		}
-#else
 
         int n=0; 
 		int allzero = 1;
@@ -1091,7 +815,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 			left = left + maxindex -2 + window_len[maxindex];
 			
 		}
-#endif
+
 
 	}
 	
@@ -1107,115 +831,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 	
 	printf("\n");
 }
-#if 0
-int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int top_height, int bot_height, int image_width, int image_height)
-{
-    int i;
-	int recogNum = 0;
-	float calc_out[ANN_OUTPUT_NUM];
-	
-	int left_pos = 0;
-	int right_pos = 0;
-	int top_pos = 0;
-	int bot_pos = 0;
-	
-//	getSlicedWidth(data,sliced_left,sliced_right,image_width,image_height,&left_pos,&right_pos);
-	getSlicedHeight(data,sliced_left,sliced_right,image_width,image_height,&top_pos,&bot_pos);
-	
-//    unsigned char *sliced = new unsigned char[(sliced_right - sliced_left + 1)*(top_height - bot_height + 1)];
-    unsigned char *sliced = new unsigned char[(sliced_right - sliced_left + 1)*(top_pos - bot_pos + 1)];
-	
-	if (sliced == NULL){
-	    printf("(line=%d)allocate memory failure!\n",__LINE__);
-	    exit(1);
-	}
-	
-//	copy_char(data,sliced,sliced_left,sliced_right,top_height,bot_height,image_width);
-    copy_char(data,sliced,sliced_left,sliced_right,top_pos,bot_pos,image_width);
-	unsigned char *norm_data = new unsigned char[NORM_WIDTH*NORM_HEIGHT];
-//	norm_data = ImageNorm(sliced,sliced_right - sliced_left + 1,top_height - bot_height + 1);
-    ImageNorm(sliced,norm_data,sliced_right - sliced_left + 1, top_pos - bot_pos + 1);
-//	ImageThinning(norm_data,NORM_WIDTH,NORM_HEIGHT);
-	delete[] sliced;
-	
-	
-	float *feature_vector = new float[MAX_FEATURE_LEN];
-	if (feature_vector == NULL){
-		printf("(line=%d)allocate memory failure!\n",__LINE__);
-		exit(1);
-	}
-	memset(feature_vector,0,MAX_FEATURE_LEN);
-	getfeatureVector(norm_data,feature_vector, NORM_WIDTH,NORM_HEIGHT);
-				
-	PRINT_NORM(norm_data,NORM_WIDTH,NORM_HEIGHT);
-	PRINT_FEATURE(feature_vector,MAX_FEATURE_LEN);
-	
-	recogDigital(feature_vector,&calc_out[0]);
-	printf("%f %f %f %f\n",calc_out[0],calc_out[1],calc_out[2],calc_out[3]);
 
-    for (i=0; i<4; i++){
-        if (calc_out[i] < (-0.2)){
-		    printf("calc_out[%d]=%f\n",i,calc_out[i]);
-		    return -1;
-		}
-		else if (calc_out[i] >= 0.25 && calc_out[i] <= 0.75){
-		    printf("calc_out[%d]=%f\n",i,calc_out[i]);
-		    return -1;
-		}
-	}	
-	
-	for (i=0; i<4; i++){
-	    if (fabs(calc_out[i]) > 0.5){
-		    recogNum = 2*recogNum + 1;
-		}
-		else{
-		    recogNum = 2*recogNum;
-		}
-	}
-	printf("recogNum=%d\n",recogNum);
-	return recogNum;
-}
-
-void set_verticalbar_blue(unsigned char *data, int width, int height, int leftpos, int rightpos)
-{
-    int i,j,k;
-	int l_width = ((width*3 + 3)>>2)<<2;
-	
-	for (i=0; i<height; i++){
-	    j = i*l_width + rightpos*3;
-	    k = i*l_width + leftpos*3;
-		
-		data[k] = 255;
-		data[k+1] = 0;
-		data[k+2] = 0;
-		
-		data[j] = 255;
-		data[j+1] = 0;
-		data[j+2] = 0;
-	}
-	
-}
-
-void set_verticalbar_red(unsigned char *data, int width, int height, int leftpos, int rightpos)
-{
-    int i,j,k;
-	int l_width = ((width*3 + 3)>>2)<<2;
-	
-	for (i=0; i<height; i++){
-	    j = i*l_width + rightpos*3;
-	    k = i*l_width + leftpos*3;
-		
-		data[k] = 0;
-		data[k+1] = 255;
-		data[k+2] = 0;
-		
-		data[j] = 0;
-		data[j+1] = 0;
-		data[j+2] = 255;
-	}
-	
-}
-#endif
 
 void copy_char(unsigned char *src,unsigned char *dest, int left,int right, int top, int bot, int image_width)
 {
@@ -1307,28 +923,3 @@ unsigned int getVerticalCrossPoint(unsigned int *data,int width_pos,int image_wi
 	return count;
 }
 
-#if 0
-unsigned int recogDigital(float *vector, float *fout)
-{
-    fann_type *calc_out;
-//	int calc_iout[4];
-	fann_type input[MAX_FEATURE_LEN];
-	int rec_num;
-	int i=0;
-	
-	for (i=0; i<MAX_FEATURE_LEN; i++){
-	    input[i] = (fann_type)vector[i];
-	}
-	/*create ANN*/
-	struct fann *ann = fann_create_from_file("digital.net");
-	
-	calc_out=fann_run(ann,input);
-	for (i=0; i<ANN_OUTPUT_NUM; i++){
-	    fout[i] = calc_out[i];
-	}
-
-	fann_destroy(ann);
-	
-	return 0;
-}
-#endif

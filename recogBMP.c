@@ -5,23 +5,19 @@
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
-//#include "floatfann.h"
 #include "gif.h"
 
 #define PI 3.1415926535898
 #define MAX_FEATURE_LEN    (192)
 #define NORM_WIDTH         (12)
 #define NORM_HEIGHT        (16)
-#define MAX_CHAR_WIDTH     (11)
-#define WINDOW_STEP        (3)
 #define MIN_WINDOW_LEN     (4)
 #define MAX_WINDOW_LEN     (10)
-#define ANN_OUTPUT_NUM     (4)
 #define MAX_TRAINING_PAIR  (1000)
 #define MAX_TRAINING_ELEM  (200)
 #define MIN_SIM            (0.81)
 
-#define DEBUG              (1)
+#define DEBUG              (0)
 
 
 /*global variable*/
@@ -36,23 +32,14 @@ int train_valuesize;
 
 
 void recogBMP(char* filename);
-unsigned int  getImageWidth(unsigned char *data,int width,int height, int *left_pos, int *right_pos);
-unsigned int  getImageHeight(unsigned char *data,int width,int height,int *top_height,int *bot_height);
 unsigned int  getSlicedHeight(unsigned char *data, int left, int right, int image_width, int image_height, int *top_height, int *bot_height);
-unsigned int  getSlicedWidth(unsigned char *data, int left, int right, int image_width, int image_height, int *left_pos, int *right_pos);
 unsigned int ImageRotation(unsigned char *data, int width, int height);
 //unsigned int ImageSplit(unsigned char *data, int width, int height);
 unsigned int ImageProcessing(unsigned char *data, int width, int height);
-unsigned int ImageThinning(unsigned char *data, int width, int height);
 unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width, int image_height);
-unsigned int recogDigital(float *vector,float *calc_out);
-void set_verticalbar_blue(unsigned char *data, int width, int height, int leftpos, int rightpos);
-void set_verticalbar_red(unsigned char *data, int width, int height, int leftpos, int rightpos);
 void copy_char(unsigned char *src,unsigned char *dest, int left,int right, int top, int bot, int image_width);
 void PRINT_NORM(unsigned char *norm_data,int width, int height);
 void PRINT_FEATURE(float *vector, int feature_len);
-int recog_one_sliced(unsigned char *data,int sliced_left, int sliced_right, int top_height, int bot_height, int image_width,int image_height);
-unsigned int IsHorizonLine(unsigned char *data, int left,int right,int image_width,int image_height);
 int IsItalic(unsigned char *data, int width, int height);
 
 void gettemplate(FILE *fd,int num,int iNum,int oNum);
@@ -164,48 +151,6 @@ unsigned int ImageRotation(unsigned char *data, int width, int height)
 
     free(rot_data);
     return 0;
-}
-
-
-unsigned int  getImageWidth(unsigned char *data,int width,int height,int *left_pos, int *right_pos)
-{
-    int left_border  = 0;
-    int right_border = width;
-    int i = 0;
-    int j = 0;
-    int k = 0;
-    int l_width = ((width*3 + 3)>>2)<<2;
-    /*scan from left to right*/
-
-    for (i=0; i<width; i++) {
-        for (j=0; j<height; j++) {
-            k=j*l_width + i*3;
-            if (data[k] == 0 && data[k+1] == 0 && data[k + 2] == 0) {
-			    left_border = i;
-				break;
-            }
-        }
-    }
-
-    printf("left_border:%d\n",left_border);
-    /*scan from right to left*/
-    for (i=width; i>=0; i--) {
-        for (j=0; j<height; j++) {
-            k=j*l_width + 3*i;
-            if (data[k-1] == 0 && data[k -2] == 0 && data[k -3] == 0) {
-                right_border = i; 
-				break;
-            }
-        }
-    }
-
-
-    printf("right_border:%d\n",right_border);
-
-	*left_pos = left_border;
-	*right_pos = right_border;
-	
-    return (*right_pos - *left_pos + 1);
 }
 
 void gettemplateInfo(FILE *fd,int *num, int *iNum, int *oNum)
@@ -375,83 +320,7 @@ int IsItalic(unsigned char *data, int width, int height)
 	return (x1==x2)?0:1;
 }
 
-/*check the symbol "-" in digital string*/
-unsigned int IsHorizonLine(unsigned char *data, int left,int right,int image_width,int image_height)
-{
-    /*check top_height and bot_height*/
-	int l_width  = ((image_width*3 + 3)>>2)<<2;
-	int i,j,k;
-	
-	int top_height = 0;
-	int bot_height = 0;
-	
-	/*scan from bottom to top*/
-	for (i=0; i<image_height; i++){
-	    for (j=left; j<=right; j++){
-		    k = i*l_width + 3*j;
-			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
-			    top_height = i;
-				break;
-			}
-		}
-	}
-	
-	/*scan from top to bottom*/
-	for (i=image_height -1; i>=0; i--){
-	    for (j=left; j<=right; j++){
-		    k = i*l_width + 3*j;
-			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
-			    bot_height = i;
-				break;
-			}
-		}
-	}
-	
-	
-	return (top_height - bot_height)<=2? 1 : 0;
-}
 
-unsigned int getImageHeight(unsigned char *data,int width,int height,int *top_height,int *bot_height)
-{
-    unsigned int top_border     = height;
-    unsigned int bottom_border  = 0;
-    int i = 0;
-    int j = 0;
-    int k = 0;
-
-    int l_width = ((width*3 + 3)>>2)<<2;
-
-    /*scan from bottom to top*/
-    for (i=0; i<height; i++) {
-        for (j=0; j<width; j++) {
-            k = i*l_width + 3*j;
-            if (data[k] == 0 && data[k + 1] == 0 && data[k + 2] == 0) {
-                top_border = i;
-                break;
-            }
-        }
-    }
-
-    printf("top_border:%d\n",top_border);
-
-    /*scan from top to bottom*/
-    for (i=height-1; i>=0; i--) {
-        for (j=0; j<width; j++) {
-            k = i*l_width + j*3;
-            if (data[k] == 0 && data[k + 1] == 0 && data[k + 2] == 0) {
-                bottom_border = i;
-                break;
-            }
-        }
-    }
-
-    printf("bottom_border:%d\n",bottom_border);
-
-	*top_height = top_border;
-	*bot_height = bottom_border;
-
-    return (top_border - bottom_border + 1);
-}
 
 unsigned int  getSlicedHeight(unsigned char *data, int left, int right, int image_width, int image_height, int *top_height, int *bot_height)
 {
@@ -479,142 +348,6 @@ unsigned int  getSlicedHeight(unsigned char *data, int left, int right, int imag
 	return (*top_height - *bot_height + 1);
 }
 
-unsigned int  getSlicedWidth(unsigned char *data, int left, int right, int image_width, int image_height, int *left_pos, int *right_pos)
-{
-    int i,j,k;
-	
-	*left_pos = left;
-	*right_pos = right;
-	
-	int l_width = ((image_width*3 + 3)>>2)<<2;
-
-#if DEBUG	
-	printf("left=%d,right=%d\n",left,right);
-#endif	
-
-	for (i=left; i<=right; i++){
-	    for (j=0; j<image_height; j++){
-		    k = j*l_width + i*3;
-			if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0){
-			    *right_pos = i;
-				break;
-			}
-		}
-	}
-	printf("left_border = %d\n",*left_pos);
-	
-	for (i=right; i>= left; i--){
-	    for (j=0; j<image_height; j++){
-		    k=j*l_width + i*3;
-			if (data[k-1] ==0 && data[k-2] == 0 && data[k-3] ==0){
-			    *left_pos = i;
-				break;
-			}
-		}
-	}
-	
-	printf("right_border=%d\n",*right_pos);
-	
-	return (*right_pos - *left_pos + 1);
-}
-
-static int IsForeGroundPixel(unsigned char *data)
-{
-    int retval = 0;
-
-    if (data[0] == 0 && data[1] == 0 && data[2] == 0) {
-        retval = 1;
-    }
-
-    return retval;
-}
-
-static int GetNeighbors(unsigned char *data,unsigned char *list,int pos_w,int pos_h,int width)
-{
-    /*0: foregroup pixel, 1:backgroup pixel*/
-    list[0] = data[pos_h*width*3 + (pos_w+1)*3] == 0 ? 0: 1;
-    list[1] = data[(pos_h+1)*width*3 + (pos_w+1)*3] == 0? 0 : 1;
-    list[2] = data[(pos_h+1)*width*3 + pos_w*3] == 0 ? 0 : 1;
-    list[3] = data[(pos_h+1)*width*3 + (pos_w -1)*3] == 0? 0: 1;
-    list[4] = data[pos_h*width*3 + (pos_w-1)*3] == 0 ? 0:1;
-    list[5] = data[(pos_h-1)*width*3 + (pos_w-1)*3] == 0?0:1;
-    list[6] = data[(pos_h-1)*width*3 + pos_w*3] == 0 ? 0:1;
-    list[7] = data[(pos_h-1)*width*3 + (pos_w-1)*3] == 0?0:1;
-}
-
-static int DetectConnectivity(unsigned char *list)
-{
-    int count = 0;
-
-    count = list[6] - list[6]*list[7]*list[0];
-    count+= list[0] - list[0]*list[1]*list[2];
-    count+= list[2] - list[2]*list[3]*list[4];
-    count+= list[4] - list[4]*list[5]*list[6];
-
-    return count;
-}
-
-static int RoughSplit(unsigned char *data,int *pos,int width,int height)
-{
-    int i,j,k;
-    int l_width = ((width*3 + 3)>>2)<<2; /*width alignment as 4 times*/
-
-    for (i=0; i<width; i++) {
-        int pixel_num = 0;
-        for (j=0; j<height; j++) { /*scan column*/
-            k = j*l_width + i*3;
-            if (data[k] == 0 && data[k+1] == 0 && data[k+2] == 0) {
-                pixel_num ++;
-            }
-        }
-
-        if (pixel_num <=3) {
-            pos[i] = 0;
-        } else {
-            pos[i] = 1;
-        }
-    }
-
-
-#if 1
-    int count = 0;
-    int flag = 0;
-    int seg_start = 0;
-    int seg_end   = 0;
-    for (i=0; i<width; i++) {
-        /*skip 0*/
-        if (pos[i] == 0 && flag == 0) {
-            continue;
-        }
-
-        if (flag == 0) {
-            seg_start = i;
-        }
-
-        flag = 1;
-        if (pos[i] == 1 && flag == 1) {
-            count ++;
-        } else {
-            seg_end = i-1;
-
-            if (count > 12 && count < 24) {
-                /*two numbers*/
-                pos[seg_start + count/2] = 0;
-            } else if (count >= 24) {
-                pos[seg_start + count/3] = 0;
-                pos[seg_start + 2*count/3] = 0;
-            }
-
-            count = 0;
-            flag = 0;
-        }
-
-    }
-#endif
-
-    return 0;
-}
-
 void ImageNorm(unsigned char *data,unsigned char *norm_data,int width, int height)
 {
     int i,j;
@@ -633,43 +366,13 @@ void ImageNorm(unsigned char *data,unsigned char *norm_data,int width, int heigh
     }
 }
 
-
-static int checkANNOutput(float *ann_output){
-    int retvalue = 0;
-	int i = 0;
-	
-	for (i=0; i<ANN_OUTPUT_NUM; i++){
-	    if (ann_output[i] < -0.2){
-		    retvalue = -1;
-			break;
-		}
-		
-		if (ann_output[i] >= 0.25 && ann_output[i] <= 0.75){
-		    retvalue = -1;
-			break;
-		}
-		
-		if (fabs(ann_output[i]) <= 0.25){
-		    retvalue = retvalue*2;
-		}
-		else{
-		    retvalue = retvalue*2 + 1;
-		}
-	}
-	
-	return retvalue;
-}
-
 unsigned int ImageProcessing(unsigned char *data, int width, int height)
 {
     int i,j,k;
 	int w,h;
 	int left, right;
-	float calc_out[ANN_OUTPUT_NUM];
 	int recogResult[13] = {0};
 	int iResult = 0;
-	
-//	int l_width = ((width*3 + 3)>>2)<<2;
 	
 	int sliced_top, sliced_bot;
 	
@@ -748,14 +451,9 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 			int index;
 			float simvalue = getsimvalue(feature_vector,&index);
 			
-//			recogDigital(feature_vector,&calc_out[0]);
 			
 #if DEBUG
             printf("index=%d,simvalue=%0.3f,recog=%d\n",index,simvalue,train_value[index]);
-#endif
-			
-#if DEBUG
-            printf("%0.3f %0.3f %0.3f %0.3f\n",calc_out[0],calc_out[1],calc_out[2],calc_out[3]);
 #endif
 			
 #if DEBUG
@@ -837,13 +535,11 @@ void copy_char(unsigned char *src,unsigned char *dest, int left,int right, int t
 {
     int i,j,k;
 	
-//	int l_width = ((image_width*3 + 3)>>2)<<2;
 	int new_width = right - left + 1;
 	
 	for (i=bot; i<=top; i++){
 	    for (j=left; j<=right; j++){
-//		    k = i*l_width + j*3;
-//			if (src[k] == 0 && src[k+1] == 0 && src[k+2] == 0){
+
             if (src[i*image_width + j] == 1){
 			    dest[(i-bot)*new_width + j-left] = 1;
 			}
@@ -891,35 +587,3 @@ unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width
 	
 	return 0;
 }
-
-
-
-/*水平线穿过height_pos时0变1和1变0的个数*/
-unsigned int getHorizonCrossPoint(unsigned int *data,int left,int right,int height_pos,int image_width)
-{	
-	int i;
-	unsigned int count = 0;
-	for (i=left+1; i<right -1; i++){
-	    if (abs(data[height_pos*image_width + i+1] - data[height_pos*image_width + i]) == 1){
-		    count++;
-		}
-	}
-	
-	return count;
-}
-
-/*垂直线穿过width_pos时0变1和1变0的个数*/
-unsigned int getVerticalCrossPoint(unsigned int *data,int width_pos,int image_width,int image_height)
-{
-    int i = 0;
-	unsigned int count = 0;
-	
-	for (i=1; i<image_height-1; i++){
-	    if (abs(data[(i+1)*image_width + width_pos] - data[i*image_width + width_pos]) == 1){
-		    count++;
-		}		
-	}
-	
-	return count;
-}
-

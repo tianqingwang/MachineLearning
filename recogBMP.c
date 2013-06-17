@@ -144,7 +144,6 @@ void recogBMP(char* filename)
     ReadGIFData(f,data,width,height);    
     
 	if (IsItalic(data,width,height) == 1){
-	    printf("italic\n");
         ImageRotation(data,width,height);  /*for italic*/
     }
 	  

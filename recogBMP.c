@@ -19,7 +19,7 @@
 #define ANN_OUTPUT_NUM     (4)
 #define MAX_TRAINING_PAIR  (1000)
 #define MAX_TRAINING_ELEM  (200)
-#define MIN_SIM            (0.84)
+#define MIN_SIM            (0.81)
 
 #define DEBUG              (1)
 

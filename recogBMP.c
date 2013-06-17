@@ -15,7 +15,7 @@
 #define MAX_WINDOW_LEN     (11)
 #define MAX_TRAINING_PAIR  (1000)
 #define MAX_TRAINING_ELEM  (200)
-#define MIN_SIM            (0.81)
+#define MIN_SIM            (0.82)
 
 #define DEBUG              (0)
 
@@ -465,6 +465,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 #endif
 
 /*judge the output*/
+#if 1
             if (simvalue >= MIN_SIM){
 			    if (maxsim[bias+2] < simvalue){
 				    maxsim[bias+2] = simvalue;
@@ -472,7 +473,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 					vIndex[bias+2] = index;
 				}
 			}
-			
+#endif			
 			free(one_ch);
 			
 			j--;

@@ -297,7 +297,7 @@ float getsimvalue(float *vector,int *result_index)
 /*Is Italic font*/
 int IsItalic(unsigned char *data, int width, int height)
 {
-#if 1
+#if 0
     int i,j,k;
 	int x1,x2;
     /*get the first x pos at the y=8*/
@@ -317,8 +317,11 @@ int IsItalic(unsigned char *data, int width, int height)
 			break;
 		}
 	}
+	
+	return (x1==x2)?0:1;
 #else
     int left,right, i,j;
+	left = 0;
 	
 	while(left < width){
 	    int pixel_num = 0;
@@ -334,7 +337,6 @@ int IsItalic(unsigned char *data, int width, int height)
 		    break;
 		}
 	}
-	
 	if (left == width){
 	    printf("error because no image data\n");
 		exit(1);
@@ -390,14 +392,12 @@ int IsItalic(unsigned char *data, int width, int height)
 	}
 	}
 	
-	printf("maxsim=%0.3f\n",maxsim);
+	
 	free(norm_data);
 	free(feature_vector);
-	
-#endif	
-	
-	return (x1==x2)?0:1;
-//    return (maxsim >=0.85) ? 0: 1;
+	return (maxsim >=0.85) ? 0: 1;
+#endif
+    
 }
 
 

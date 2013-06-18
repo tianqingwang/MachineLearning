@@ -34,6 +34,7 @@ int train_valuesize;
 void recogBMP(char* filename);
 unsigned int  getSlicedHeight(unsigned char *data, int left, int right, int image_width, int image_height, int *top_height, int *bot_height);
 unsigned int ImageRotation(unsigned char *data, int width, int height);
+void ImageNorm(unsigned char *data,unsigned char *norm_data,int width, int height);
 //unsigned int ImageSplit(unsigned char *data, int width, int height);
 unsigned int ImageProcessing(unsigned char *data, int width, int height);
 unsigned int getfeatureVector(unsigned char *data, float *vector,int image_width, int image_height);
@@ -296,6 +297,7 @@ float getsimvalue(float *vector,int *result_index)
 /*Is Italic font*/
 int IsItalic(unsigned char *data, int width, int height)
 {
+#if 1
     int i,j,k;
 	int x1,x2;
     /*get the first x pos at the y=8*/
@@ -315,9 +317,87 @@ int IsItalic(unsigned char *data, int width, int height)
 			break;
 		}
 	}
+#else
+    int left,right, i,j;
 	
+	while(left < width){
+	    int pixel_num = 0;
+	    for (i=0; i<height; i++){
+		    if (data[i*width + left] == 1){
+			    pixel_num++;
+			}
+		}
+		if (pixel_num <= 1){
+		    left ++;
+		}
+		else{
+		    break;
+		}
+	}
+	
+	if (left == width){
+	    printf("error because no image data\n");
+		exit(1);
+	}
+	
+	float maxsim = 0;
+	int sliced_top,sliced_bot;
+	
+	unsigned char *norm_data = (unsigned char*)malloc(sizeof(unsigned char)*NORM_WIDTH*NORM_HEIGHT);
+	
+	if (norm_data == NULL){
+	    printf("(%d) allocate memory failed\n",__LINE__);
+		exit(1);
+	}
+	
+	float *feature_vector = (float*)malloc(sizeof(float)*MAX_FEATURE_LEN);
+	if (feature_vector == NULL){
+	    printf("(%d) allocate memory failed\n",__LINE__);
+		exit(1);
+	}
+	
+	int bias;
+	
+	for (bias=-2; bias<=2; bias++){
+	
+	j=MAX_WINDOW_LEN;
+	while(j>=MIN_WINDOW_LEN){
+	    right = left + bias+j;
+	    getSlicedHeight(data,left+bias,right,width,height,&sliced_top,&sliced_bot);
+		
+		unsigned char *one_ch = (unsigned char*)malloc(sizeof(unsigned char)*(right-(left+bias)+1)*(sliced_top-sliced_bot+1));
+		
+		
+		if (one_ch == NULL){
+		    printf("(%d) allocate memory failed\n",__LINE__);
+			exit(1);
+		}
+		memset(one_ch,0,(right-(left+bias)+1)*(sliced_top-sliced_bot+1));
+		
+		copy_char(data,one_ch,left+bias,right, sliced_top,sliced_bot,width);
+		memset(norm_data,0,NORM_WIDTH*NORM_HEIGHT);
+		ImageNorm(one_ch,norm_data,right-(left+bias)+1,sliced_top-sliced_bot+1);
+		memset(feature_vector,0,MAX_FEATURE_LEN);
+		getfeatureVector(norm_data,feature_vector,NORM_WIDTH,NORM_HEIGHT);
+		int index;
+		float simvalue = getsimvalue(feature_vector,&index);
+		if (simvalue > maxsim){
+		    maxsim = simvalue;
+		}
+		
+		free(one_ch);
+		j--;
+	}
+	}
+	
+	printf("maxsim=%0.3f\n",maxsim);
+	free(norm_data);
+	free(feature_vector);
+	
+#endif	
 	
 	return (x1==x2)?0:1;
+//    return (maxsim >=0.85) ? 0: 1;
 }
 
 

@@ -455,6 +455,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 	int iResult = 0;
 	
 	int sliced_top, sliced_bot;
+	int isHG = 0; /*symbol "-"*/
 	
 	int pixel_num = 0;
 	
@@ -503,12 +504,18 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 		j = MAX_WINDOW_LEN;
 		while(j>=MIN_WINDOW_LEN){
 		    right = left + bias + j;
+			isHG = 0;
 			if (right >= width){
 			    right = width - 1;
 				j = right - (left + bias);
 			}
 			
 			getSlicedHeight(data,left+bias,right,width,height,&sliced_top,&sliced_bot);
+			if (sliced_top - sliced_bot == 1){
+			    /* is symbol "-" ?*/
+				isHG=1;
+				break;
+			}
 #if DEBUG
 			printf("left=%d,right=%d\n",left+bias,right);
 			printf("sliced_top=%d,sliced_bot=%d\n",sliced_top,sliced_bot);
@@ -561,7 +568,15 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 #if DEBUG
 		printf("maxsim[%d]=%0.3f\n",bias+2,maxsim[bias+2]);
 #endif
+            if (isHG == 1){
+			    break;
+			}
 	    }
+		
+		if (isHG == 1){
+		    left = right + 1;
+		}
+		else{
 
         int n=0; 
 		int allzero = 1;
@@ -593,6 +608,7 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 			recogResult[iResult++] = train_value[vIndex[maxindex]];
 			left = left + maxindex -2 + window_len[maxindex];
 			
+		}
 		}
 
 

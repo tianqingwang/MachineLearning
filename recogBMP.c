@@ -16,6 +16,7 @@
 #define MAX_TRAINING_PAIR  (1000)
 #define MAX_TRAINING_ELEM  (200)
 #define MIN_SIM            (0.82)
+#define MIN_QX_SIM         (0.81)
 
 #define DEBUG              (0)
 
@@ -28,6 +29,8 @@ int train_value[MAX_TRAINING_PAIR];
 int train_totalPair;
 int train_vectorsize;
 int train_valuesize;
+
+int ItalicFlag = 0;
 
 
 
@@ -95,11 +98,14 @@ void recogBMP(char* filename)
     unsigned char *data=(unsigned char*)malloc(width*height*sizeof(unsigned char));
     ReadGIFData(f,data,width,height);    
     
+	ItalicFlag = 0;
+	
 	if (IsItalic(data,width,height) == 1){
+	    ItalicFlag = 1;
         ImageRotation(data,width,height);  /*for italic*/
     }
 	  
-      ImageProcessing(data,width,height);
+    ImageProcessing(data,width,height);
 
     delete[] data;
     return;
@@ -553,7 +559,11 @@ unsigned int ImageProcessing(unsigned char *data, int width, int height)
 
 /*judge the output*/
 #if 1
-            if (simvalue >= MIN_SIM){
+            float minSim = MIN_SIM;
+			if (ItalicFlag == 1){
+			    minSim = MIN_QX_SIM;
+			}
+            if (simvalue >= minSim){
 			    if (maxsim[bias+2] < simvalue){
 				    maxsim[bias+2] = simvalue;
 					window_len[bias+2] = j;

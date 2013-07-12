@@ -71,7 +71,7 @@ int main(int argc, char * argv[])
 	    gettemplate(fp,train_totalPair,train_vectorsize,train_valuesize);
 	    for (i=1; i<argc; i++){
             strcpy(filename, argv[i]);
-            printf("%s\n",filename);
+            printf("%s\t",filename);
 			
 			
 			
